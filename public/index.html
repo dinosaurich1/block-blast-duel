@@ -2019,6 +2019,30 @@ line-height: 1;
     color: #000;
     box-shadow: 0 8px 24px rgba(255,215,0,0.5);
     }
+    .tourWinnerBox {
+    text-align: center;
+    padding: 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,140,0,0.15));
+    border: 1px solid rgba(255,215,0,0.5);
+    margin-bottom: 10px;
+    }
+    .tourWinnerName {
+    font-size: 14px;
+    font-weight: 900;
+    color: #ffd93b;
+    margin-top: 4px;
+    }
+    .tourWinnerLabel {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    }
+    .tourWaitBox {
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    }
   </style>
 </head>
 
@@ -4052,60 +4076,52 @@ line-height: 1;
     stopSpeedrunTimer();
     if (state.myScore >= 500) spawnConfetti(80);
     const finishUI = function(profile, gain, coinsGain, rankUpInfo, offline) {
-    const newRank = getRank(profile ? profile.rating : 0);
-    const rewardHTML = '<div class="rewardRow">'
-      + '<div class="rewardBox">
-        <div class="gain' + (gain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + gain) + '</div>
-        <div class="label">'рейтинга'</div>
-      </div>'
-      + '<div class="rewardBox">
-        <div class="gain' + (coinsGain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + coinsGain) + '</div>
-        <div class="label">'🪙 монет'</div>
-      </div>'
-      + '</div>';
-    const modeLabel = state.soloMode === 'speedrun' ? 'СПИДРАН' : state.soloMode === 'zen' ? 'ДЗЕН' : state.soloMode ===
-    'puzzle' ? 'ПАЗЛ ДНЯ' : 'ИГРА ОКОНЧЕНА';
-    setTimeout(function() {
-    const btns = [
-    { text: '📺 ×2 монет', action: function() {
-    showFakeAd(15, '×2 монет', function() {
-    if (state.socket && state.socket.connected) {
-    // Начисляем ещё столько же (не отправляем на сервер, просто локально — или можно отправить заново)
-    showToast('+🪙' + coinsGain + ' бонус');
-    }
-    }, function() {});
-    }},
-    { text: 'Играть снова', action: function() { startSolo(state.soloMode); } },
-    { text: 'В меню', action: showMenu, secondary: true }
-    ];
-    showOverlay(
-    rankUpInfo ? '🏆 НОВЫЙ РАНГ!' : modeLabel,
-    'Счёт: <b>' + state.myScore + '</b><br>Рейтинг: <b>' + (profile ? profile.rating : 0) + '</b> · ' + newRank.icon + ' ' +
-    newRank.name
-    + (offline ? '<br><small style="color:#ffa502">Офлайн — не сохранено</small>' : ''),
-    btns,
-    false, rewardHTML
-    );
-    }, 600);
+      const newRank = getRank(profile ? profile.rating : 0);
+      const rewardHTML = '<div class="rewardRow">'
+        + '<div class="rewardBox"><div class="gain' + (gain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + gain) + '</div><div class="label">рейтинга</div></div>'
+        + '<div class="rewardBox"><div class="gain' + (coinsGain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + coinsGain) + '</div><div class="label">монет</div></div>'
+        + '</div>';
+      const modeLabel = state.soloMode === 'speedrun' ? 'СПИДРАН'
+        : state.soloMode === 'zen' ? 'ДЗЕН'
+        : state.soloMode === 'puzzle' ? 'ПАЗЛ ДНЯ'
+        : 'ИГРА ОКОНЧЕНА';
+      setTimeout(function() {
+        const btns = [
+          { text: 'x2 монет за рекламу', action: function() {
+            showFakeAd(15, 'Удвоение монет', function() {
+              showToast('+' + coinsGain + ' бонус');
+            }, function() {});
+          }},
+          { text: 'Играть снова', action: function() { startSolo(state.soloMode); } },
+          { text: 'В меню', action: showMenu, secondary: true }
+        ];
+        showOverlay(
+          rankUpInfo ? 'НОВЫЙ РАНГ!' : modeLabel,
+          'Счёт: <b>' + state.myScore + '</b><br>Рейтинг: <b>' + (profile ? profile.rating : 0) + '</b> · ' + newRank.icon + ' ' + newRank.name
+          + (offline ? '<br><small style="color:#ffa502">Офлайн — не сохранено</small>' : ''),
+          btns,
+          false, rewardHTML
+        );
+      }, 600);
     };
     if (state.socket && state.socket.connected) {
       let done = false;
       const t = setTimeout(function() { if (done) return; done = true; finishUI(state.profile, 0, 0, null, true); }, 5000);
       state.socket.emit('submitSoloResult', {
-      userId: state.userId,
-      score: state.myScore,
-      maxCombo: state.combo || 0,
-      linesCleared: state.totalLinesCleared || 0,
-      mode: state.soloMode || 'classic'
+        userId: state.userId,
+        score: state.myScore,
+        maxCombo: state.combo || 0,
+        linesCleared: state.totalLinesCleared || 0,
+        mode: state.soloMode || 'classic'
       }, function(res) {
         if (done) return; done = true;
         clearTimeout(t);
         if (res && res.profile) {
-        state.profile = res.profile;
-        state.activeSkin = res.profile.activeSkin || state.activeSkin;
-        saveLocalMeta(); renderMenuRank(); updateScoreUI();
-        if (res.refBonus) showToast('🤝 +🪙' + res.refBonus + ' за приглашённого друга!');
-        finishUI(res.profile, res.gain, (res.coinsGain || 0) + (res.refBonus || 0), res.rankUp, false);
+          state.profile = res.profile;
+          state.activeSkin = res.profile.activeSkin || state.activeSkin;
+          saveLocalMeta(); renderMenuRank(); updateScoreUI();
+          if (res.refBonus) showToast('+' + res.refBonus + ' за приглашённого друга');
+          finishUI(res.profile, res.gain, (res.coinsGain || 0) + (res.refBonus || 0), res.rankUp, false);
         } else finishUI(state.profile, 0, 0, null, true);
       });
     } else finishUI(state.profile, 0, 0, null, true);
@@ -4569,113 +4585,103 @@ line-height: 1;
       });
       }
     
-      function renderTournamentOverlay() {
-      const t = state.tournament;
-      if (!t) {
-      $('overlayCustom').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.5);">Турнир
-        недоступен</div>';
-      return;
+  function renderTournamentOverlay() {
+  const t = state.tournament;
+  if (!t) {
+  $('overlayCustom').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.5);">Турнир недоступен</div>';
+  return;
+  }
+  
+  const isRegistered = t.players.some(function(x) { return x.userId === state.userId; });
+  const coins = (state.profile && state.profile.coins) || 0;
+  const now = Date.now();
+  const msToStart = Math.max(0, t.startTime - now);
+  
+  let html = '<div style="max-height:65vh;overflow-y:auto;width:100%;">';
+  
+    // Шапка
+    html += '<div class="tourHeader">';
+      html += '<div class="tourTitle">Турнир недели</div>';
+      html += '<div class="tourSub">Воскресенье, 18:00 МСК</div>';
+      if (t.state === 'registration') {
+      html += '<div class="tourTimer">' + formatCountdown(msToStart) + '</div>';
+      html += '<div class="tourTimerLabel">до старта</div>';
+      } else if (t.state === 'running') {
+      html += '<div class="tourTimer" style="color:#2ed573;">ИДЁТ</div>';
+      html += '<div class="tourTimerLabel">турнир в процессе</div>';
+      } else if (t.state === 'finished') {
+      html += '<div class="tourTimer" style="color:#ffd93b;">ЗАВЕРШЁН</div>';
+      } else if (t.state === 'cancelled') {
+      html += '<div class="tourTimer" style="color:#ff4757;">ОТМЕНЁН</div>';
+      html += '<div class="tourTimerLabel">мало игроков</div>';
       }
-    
-      const isRegistered = t.players.some(function(x) { return x.userId === state.userId; });
-      const coins = (state.profile && state.profile.coins) || 0;
-      const now = Date.now();
-      const msToStart = Math.max(0, t.startTime - now);
-    
-      let html = '<div style="max-height:65vh;overflow-y:auto;width:100%;">';
-    
-        // Шапка
-        html += '<div class="tourHeader">'
-          + '<div class="tourTitle">🏆 Турнир недели</div>'
-          + '<div class="tourSub">Воскресенье · 18:00 МСК</div>';
-          if (t.state === 'registration') {
-          html += '<div class="tourTimer">' + formatCountdown(msToStart) + '</div>'
-          + '<div class="tourTimerLabel">до старта</div>';
-          } else if (t.state === 'running') {
-          html += '<div class="tourTimer" style="color:#2ed573;">ИДЁТ</div>'
-          + '<div class="tourTimerLabel">турнир в процессе</div>';
-          } else if (t.state === 'finished') {
-          html += '<div class="tourTimer" style="color:#ffd93b;">ЗАВЕРШЁН</div>';
-          } else if (t.state === 'cancelled') {
-          html += '<div class="tourTimer" style="color:#ff4757;">ОТМЕНЁН</div>'
-          + '<div class="tourTimerLabel">мало игроков</div>';
-          }
-          html += '</div>';
-    
-        // Призы
-        html += '<div class="tourPrizes">'
-          + '<div class="tourPrize gold">🥇 ' + t.prize1 + '</div>'
-          + '<div class="tourPrize silver">🥈 ' + t.prize2 + '</div>'
-          + '<div class="tourPrize bronze">🥉 ' + t.prize3 + '</div>'
-          + '</div>';
-    
-        // Победитель
-        if (t.state === 'finished' && t.winner) {
-        html += '<div
-          style="text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,140,0,0.15));border:1px solid rgba(255,215,0,0.5);margin-bottom:10px;">
-          '
-          + '<div style="font-size:28px;">👑</div>'
-          + '<div style="font-size:14px;font-weight:900;color:#ffd93b;margin-top:4px;">' +
-            escapeHtml(getPlayerNameById(t.winner)) + '</div>'
-          + '<div style="font-size:11px;color:rgba(255,255,255,0.6);">победитель турнира</div>'
-          + '</div>';
-        }
-    
-        // Участники
-        html += '<div class="sectionTitle" style="margin-top:12px;">Участники (' + t.players.length + '/' + 8 + ')</div>';
-        html += '<div class="tourPlayers">';
-          const registeredIds = t.players.map(function(p) { return p.userId; });
-          for (let i = 0; i < 8; i++) { const p=t.players[i]; if (p) { const isMe=p.userId===state.userId; html
-            +='<div class="tourPlayer' + (isMe ? ' me' : '' ) + '">' + '<span class="slotNum">' + (i + 1) + '.</span>'
-            + '<span class="playerName">' + escapeHtml(p.name) + '</span>' + '</div>' ; } else { html
-            +='<div class="tourPlayer empty">' + '<span class="slotNum">' + (i + 1) + '.</span>'
-            + '<span class="playerName">свободно</span>' + '</div>' ; } } html +='</div>' ; // Сетка
-             if (t.bracket) { html
-            +='<div class="sectionTitle" style="margin-top:12px;">Сетка</div>' ; html +='<div class="bracket">' ; const
-            rounds=[ { key: 'round1' , label: '¼ финала' }, { key: 'round2' , label: '½ финала' }, { key: 'round3' ,
-            label: 'Финал' } ]; for (const r of rounds) { const matches=t.bracket[r.key]; if (!matches ||
-            matches.length===0) continue; html +='<div class="bracketRound">' + '<div class="roundTitle">' + r.label
-            + '</div>' ; for (const m of matches) { const n1=getPlayerNameById(m.p1); const n2=getPlayerNameById(m.p2);
-            const wClass=m.winner===m.p1 ? ' winner' : '' ; const wClass2=m.winner===m.p2 ? ' winner' : '' ; html
-            +='<div class="bracketMatch ' + m.status + '">' + '<div class="matchPlayer' + wClass + (n1 ? '' : ' empty' )
-            + '"><span class="mpName">' + (n1 ? escapeHtml(n1) : '—' ) + '</span></div>' + '<div class="vs">vs</div>'
-            + '<div class="matchPlayer' + wClass2 + (n2 ? '' : ' empty' ) + '"><span class="mpName">' + (n2 ? escapeHtml(n2)
-            : '—' ) + '</span></div>' + '</div>' ; } html +='</div>' ; } html +='</div>' ; } // Кнопка действия
-             if (t.state==='registration' ) { if (isRegistered) { html
-            +='<button class="tourAction cancel" id="tourUnreg">Отменить запись (+' + t.entryFee + ' 🪙)</button>' ; } else
-            if (t.players.length>= 8) {
-            html += '<button class="tourAction" disabled>Мест нет (8/8)</button>';
-            } else if (coins < t.entryFee) { html +='<button class="tourAction" disabled>Нужно ' + t.entryFee
-              + ' 🪙 (у вас ' + coins + ')</button>' ; } else { html
-              +='<button class="tourAction gold" id="tourReg">Записаться · ' + t.entryFee + ' 🪙</button>' ; } } else if
-              (t.state==='running' ) { if (isRegistered) { html
-              +='<div style="text-align:center;padding:10px;font-size:12px;color:rgba(255,255,255,0.6);">Вы участвуете. Ждём соперника…</div>'
-              ; } } html +='</div>' ; $('overlayCustom').innerHTML=html; // Обработчики кнопок
-               const btnReg=$('tourReg');
-              const btnUnreg=$('tourUnreg'); if (btnReg) { btnReg.onclick=function() { Audio.click(); btnReg.disabled=true;
-              btnReg.textContent='Записываемся…' ; state.socket.emit('tournamentRegister', { userId: state.userId },
-              function(res) { if (res && res.error) { const msgs={ tournament_full: 'Мест нет' ,
-              already_registered: 'Вы уже записаны' , not_enough_coins: 'Недостаточно монет' ,
-              registration_closed: 'Регистрация закрыта' }; showToast(msgs[res.error] || 'Ошибка' ); } else { if
-              (res.profile) { state.profile=res.profile; saveLocalMeta(); renderMenuRank(); } if (res.tournament)
-              state.tournament=res.tournament; Audio.questDone(); showToast('✅ Запись подтверждена'); }
-              renderTournamentOverlay(); }); }; } if (btnUnreg) { btnUnreg.onclick=function() { Audio.click();
-              btnUnreg.disabled=true; state.socket.emit('tournamentUnregister', { userId: state.userId }, function(res) { if
-              (res && res.error) { showToast('Ошибка: ' + res.error);
-              } else {
-                if (res.profile) {
-                  state.profile = res.profile;
-                  saveLocalMeta(); renderMenuRank();
-                }
-                if (res.tournament) state.tournament = res.tournament;
-                showToast(' Запись отменена'); } renderTournamentOverlay(); }); }; } // Запускаем локальный апдейт таймера, пока окно открыто
-                 if (t.state==='registration' ) { clearTimeout(window.__tourTimer); const tick=function() {
-              if ($('overlay').classList.contains('hidden')) return; if (!state.tournament || state.tournament.state
-              !=='registration' ) return; const ms=Math.max(0, state.tournament.startTime - Date.now()); const
-              el=document.querySelector('.tourTimer'); if (el) el.textContent=formatCountdown(ms); if (ms <=0) {
-              state.socket.emit('tournamentStatus', { userId: state.userId }, function(res) { if (res && res.tournament)
-              state.tournament=res.tournament; renderTournamentOverlay(); }); return; } window.__tourTimer=setTimeout(tick,
-              1000); }; window.__tourTimer=setTimeout(tick, 1000); } }
+      html += '</div>';
+  
+    // Призы
+    html += '<div class="tourPrizes">';
+      html += '<div class="tourPrize gold">🥇 ' + t.prize1 + '</div>';
+      html += '<div class="tourPrize silver">🥈 ' + t.prize2 + '</div>';
+      html += '<div class="tourPrize bronze">🥉 ' + t.prize3 + '</div>';
+      html += '</div>';
+  
+    // Победитель
+    if (t.state === 'finished' && t.winner) {
+    html += '<div class="tourWinnerBox">';
+      html += '<div style="font-size:28px;text-align:center;">👑</div>';
+      html += '<div class="tourWinnerName">' + escapeHtml(getPlayerNameById(t.winner)) + '</div>';
+      html += '<div class="tourWinnerLabel">победитель турнира</div>';
+      html += '</div>';
+    }
+  
+    // Участники
+    html += '<div class="sectionTitle" style="margin-top:12px;">Участники (' + t.players.length + '/8)</div>';
+    html += '<div class="tourPlayers">';
+      for (let i = 0; i < 8; i++) { const p=t.players[i]; if (p) { const isMe=p.userId===state.userId; html
+        +='<div class="tourPlayer' + (isMe ? ' me' : '' ) + '">' ; html +='<span class="slotNum">' + (i + 1) + '.</span>'
+        ; html +='<span class="playerName">' + escapeHtml(p.name) + '</span>' ; html +='</div>' ; } else { html
+        +='<div class="tourPlayer empty">' ; html +='<span class="slotNum">' + (i + 1) + '.</span>' ; html
+        +='<span class="playerName">свободно</span>' ; html +='</div>' ; } } html +='</div>' ; // Сетка if (t.bracket) {
+        html +='<div class="sectionTitle" style="margin-top:12px;">Сетка</div>' ; html +='<div class="bracket">' ; const
+        roundDefs=[ { key: 'round1' , label: '1/4 финала' }, { key: 'round2' , label: '1/2 финала' }, { key: 'round3' ,
+        label: 'Финал' } ]; for (const r of roundDefs) { const matches=t.bracket[r.key]; if (!matches ||
+        matches.length===0) continue; html +='<div class="bracketRound">' ; html +='<div class="roundTitle">' + r.label
+        + '</div>' ; for (const m of matches) { const n1=getPlayerNameById(m.p1); const n2=getPlayerNameById(m.p2); const
+        wClass=m.winner===m.p1 && m.p1 ? ' winner' : '' ; const wClass2=m.winner===m.p2 && m.p2 ? ' winner' : '' ; html
+        +='<div class="bracketMatch ' + m.status + '">' ; html +='<div class="matchPlayer' + wClass + (n1 ? '' : ' empty'
+        ) + '"><span class="mpName">' + (n1 ? escapeHtml(n1) : '—' ) + '</span></div>' ; html +='<div class="vs">vs</div>'
+        ; html +='<div class="matchPlayer' + wClass2 + (n2 ? '' : ' empty' ) + '"><span class="mpName">' + (n2 ?
+        escapeHtml(n2) : '—' ) + '</span></div>' ; html +='</div>' ; } html +='</div>' ; } html +='</div>' ; } // Кнопка действия 
+        if (t.state==='registration' ) { if (isRegistered) { html
+        +='<button class="tourAction cancel" id="tourUnreg">Отменить запись</button>' ; } else if (t.players.length>= 8) {
+        html += '<button class="tourAction" disabled>Мест нет (8/8)</button>';
+        } else if (coins < t.entryFee) { html +='<button class="tourAction" disabled>Нужно ' + t.entryFee
+          + ' монет (у вас ' + coins + ')</button>' ; } else { html
+          +='<button class="tourAction gold" id="tourReg">Записаться - ' + t.entryFee + ' монет</button>' ; } } else if
+          (t.state==='running' ) { if (isRegistered) { html
+          +='<div class="tourWaitBox">Вы участвуете. Ждём соперника…</div>' ; } } html +='</div>' ;
+          $('overlayCustom').innerHTML=html; const btnReg=$('tourReg'); const btnUnreg=$('tourUnreg'); if (btnReg) {
+          btnReg.onclick=function() { Audio.click(); btnReg.disabled=true; btnReg.textContent='Записываемся…' ;
+          state.socket.emit('tournamentRegister', { userId: state.userId }, function(res) { if (res && res.error) { const
+          msgs={ tournament_full: 'Мест нет' , already_registered: 'Вы уже записаны' ,
+          not_enough_coins: 'Недостаточно монет' , registration_closed: 'Регистрация закрыта' }; showToast(msgs[res.error]
+          || 'Ошибка' ); } else { if (res.profile) { state.profile=res.profile; saveLocalMeta(); renderMenuRank(); } if
+          (res.tournament) state.tournament=res.tournament; Audio.questDone(); showToast('Запись подтверждена'); }
+          renderTournamentOverlay(); }); }; } if (btnUnreg) { btnUnreg.onclick=function() { Audio.click();
+          btnUnreg.disabled=true; state.socket.emit('tournamentUnregister', { userId: state.userId }, function(res) { if
+          (res && res.error) { showToast('Ошибка: ' + res.error);
+            } else {
+              if (res.profile) {
+                state.profile = res.profile;
+                saveLocalMeta(); renderMenuRank();
+              }
+              if (res.tournament) state.tournament = res.tournament;
+              showToast(' Запись отменена'); } renderTournamentOverlay(); }); }; } if (t.state==='registration' ) {
+          clearTimeout(window.__tourTimer); const tick=function() { if ($('overlay').classList.contains('hidden')) return;
+          if (!state.tournament || state.tournament.state !=='registration' ) return; const ms=Math.max(0,
+          state.tournament.startTime - Date.now()); const el=document.querySelector('.tourTimer'); if (el)
+          el.textContent=formatCountdown(ms); if (ms <=0) { state.socket.emit('tournamentStatus', { userId: state.userId
+          }, function(res) { if (res && res.tournament) state.tournament=res.tournament; renderTournamentOverlay(); });
+          return; } window.__tourTimer=setTimeout(tick, 1000); }; window.__tourTimer=setTimeout(tick, 1000); } }
     // ============ ЗАГЛУШКА РЕКЛАМЫ ============
   function showFakeAd(seconds, rewardText, onReward, onCancel) {
     seconds = seconds || 15;
@@ -4737,10 +4743,10 @@ line-height: 1;
         +   '<span class="icon">🎯</span>'
         +   '<span class="text">Классика<small>Рейтинг за рекорд</small></span>'
         + '</button>'
-    + '<button class="submenuBtn" id="smSpeed" style="border-color:rgba(255,71,87,0.5);">'
-        +   '<span class="icon">⏱️</span>'
-        +   '<span class="text">Спидран<small>60 секунд · монеты ×1.2</small></span>'
-        + '</button>'
+          + '<button class="submenuBtn" id="smSpeed" style="border-color:rgba(255,71,87,0.5);">'
+          +   '<span class="icon">⏱️</span>'
+          +   '<span class="text">Спидран<small>60 секунд · монеты ×1.2</small></span>'
+          + '</button>'
     + '<button class="submenuBtn" id="smZen" style="border-color:rgba(46,213,115,0.5);">'
         +   '<span class="icon">🧘</span>'
         +   '<span class="text">Дзен<small>Без проигрыша · только монеты</small></span>'
@@ -4776,23 +4782,25 @@ line-height: 1;
   }
 
   function showProgressMenu() {
-  showOverlay('🏆 ПРОГРЕСС', '', [
+  showOverlay('ПРОГРЕСС', '', [
   { text: 'Назад', action: showMenu, secondary: true }
   ], false);
-  $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
+  const html = ''
+  + '<div style="display:flex;flex-direction:column;gap:8px;">'
     + '<button class="submenuBtn" id="smTour" style="border-color:rgba(255,215,0,0.5);">'
-        +   '<span class="icon">🏆</span>'
-        +   '<span class="text">Турнир недели<small>Воскресенье 18:00 МСК · взнос 100 🪙</small></span>'
+        + '<span class="icon">🏆</span>'
+        + '<span class="text">Турнир недели<small>Воскресенье 18:00 МСК, взнос 100 монет</small></span>'
         + '</button>'
     + '<button class="submenuBtn" id="smQuests" style="border-color:rgba(46,213,115,0.4);">'
-        +   '<span class="icon">📅</span>'
-        +   '<span class="text">Квесты дня<small>3 задания на сегодня</small></span>'
+        + '<span class="icon">📅</span>'
+        + '<span class="text">Квесты дня<small>3 задания на сегодня</small></span>'
         + '</button>'
     + '<button class="submenuBtn" id="smAch" style="border-color:rgba(255,215,0,0.4);">'
-        +   '<span class="icon">🏅</span>'
-        +   '<span class="text">Достижения<small>Прогресс и награды</small></span>'
+        + '<span class="icon">🏅</span>'
+        + '<span class="text">Достижения<small>Прогресс и награды</small></span>'
         + '</button>'
     + '</div>';
+  $('overlayCustom').innerHTML = html;
   $('smTour').onclick = function() { Audio.click(); showTournamentOverlay(); };
   $('smQuests').onclick = function() { Audio.click(); showQuestsOverlay(); };
   $('smAch').onclick = function() { Audio.click(); showAchievementsOverlay(); };
