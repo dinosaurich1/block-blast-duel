@@ -25,16 +25,35 @@ const redis = new Redis({
 });
 const PLAYERS_KEY = 'bbd:players';
 const TOURNAMENT_KEY = 'bbd:tournament';
+const STATS_KEY = 'bbd:stats';
+let stats = {
+  totalGamesSolo: 0,
+  totalGamesDuel: 0,
+  totalGamesTournament: 0,
+  totalScoreSolo: 0,
+  maxScoreSolo: 0,
+  dailyActive: {}, // { '2025-09-17': [userId1, userId2] }
+  newPlayersByDay: {}, // { '2025-09-17': 5 }
+  playersByGames: {}, // { 1: count, 5: count, 10: count, 20: count }
+  totalEmotes: 0,
+  totalSkinsBought: 0
+};
 let players = {};
 let playersLoaded = false;
 let tournament = null;
 
 const playersReady = (async () => {
   try {
-    const [playersData, tourData] = await Promise.all([
+    const [playersData, tourData, statsData] = await Promise.all([
       redis.get(PLAYERS_KEY),
-      redis.get(TOURNAMENT_KEY)
+      redis.get(TOURNAMENT_KEY),
+      redis.get(STATS_KEY)
     ]);
+    let statsParsed = statsData;
+    if (typeof statsData === 'string') { try { statsParsed = JSON.parse(statsData); } catch (e) { statsParsed = null; } }
+    if (statsParsed && typeof statsParsed === 'object') {
+      stats = Object.assign(stats, statsParsed);
+    }
     // Игроки
     let parsed = playersData;
     if (typeof playersData === 'string') { try { parsed = JSON.parse(playersData); } catch (e) { parsed = null; } }
@@ -45,6 +64,11 @@ const playersReady = (async () => {
         if (typeof p !== 'object' || p === null) { delete players[uid]; continue; }
         migrateProfile(p, uid);
       }
+      if (typeof p.coinsSpent !== 'number') p.coinsSpent = 0;
+      if (typeof p.emoteCount !== 'number') p.emoteCount = 0;
+      if (typeof p.duelWinStreak !== 'number') p.duelWinStreak = 0;
+      if (typeof p.duelBestWinStreak !== 'number') p.duelBestWinStreak = 0;
+      if (typeof p.tournamentsPlayed !== 'number') p.tournamentsPlayed = 0;
       console.log('Loaded ' + Object.keys(players).length + ' profiles');
     }
     // Турнир
@@ -105,6 +129,49 @@ function savePlayers() {
     try { await redis.set(PLAYERS_KEY, JSON.stringify(players)); }
     catch (e) { console.error('Redis save failed:', e.message); }
   }, 800);
+}
+let statsSaveTimer = null;
+function saveStats() {
+  if (!playersLoaded) return;
+  if (statsSaveTimer) clearTimeout(statsSaveTimer);
+  statsSaveTimer = setTimeout(async () => {
+    statsSaveTimer = null;
+    try { await redis.set(STATS_KEY, JSON.stringify(stats)); }
+    catch (e) { console.error('Stats save failed:', e.message); }
+  }, 2000);
+}
+
+function trackActive(userId) {
+  const today = todayStr();
+  if (!stats.dailyActive[today]) stats.dailyActive[today] = [];
+  if (stats.dailyActive[today].indexOf(userId) === -1) {
+    stats.dailyActive[today].push(userId);
+  }
+  // Чистим старые записи (старше 60 дней)
+  const cutoff = Date.now() - 60 * 24 * 3600 * 1000;
+  for (const day of Object.keys(stats.dailyActive)) {
+    const dayTime = new Date(day).getTime();
+    if (dayTime < cutoff) delete stats.dailyActive[day];
+  }
+  saveStats();
+}
+
+function trackNewPlayer() {
+  const today = todayStr();
+  if (!stats.newPlayersByDay[today]) stats.newPlayersByDay[today] = 0;
+  stats.newPlayersByDay[today]++;
+  saveStats();
+}
+
+function trackGamesBucket(gamesCount) {
+  const buckets = [1, 5, 10, 20, 50, 100];
+  for (const b of buckets) {
+    if (gamesCount === b) {
+      if (!stats.playersByGames[b]) stats.playersByGames[b] = 0;
+      stats.playersByGames[b]++;
+    }
+  }
+  saveStats();
 }
 
 let tourSaveTimer = null;
@@ -230,7 +297,19 @@ const ACHIEVEMENT_DEFS = [
   { id: 'buy_first_skin', name: 'Модник', desc: 'Купить первый скин', icon: '🎨', coins: 100 },
   { id: 'collector_all', name: 'Коллекционер', desc: 'Собрать все скины', icon: '🏅', coins: 2000 },
   { id: 'referral_1', name: 'Друг друга', desc: 'Пригласить друга', icon: '🤝', coins: 100 },
-  { id: 'tournament_1', name: 'Чемпион', desc: 'Победить в турнире', icon: '🏆', coins: 300 }
+  { id: 'tournament_1', name: 'Чемпион', desc: 'Победить в турнире', icon: '🏆', coins: 300 },
+  { id: 'sunrise', name: 'Проснись и пой', desc: '50 соло-игр', icon: '🌅', coins: 100 },
+  { id: 'marathon_plus', name: 'Марафонец+', desc: '200 соло-игр', icon: '🏃', coins: 500 },
+  { id: 'sniper', name: 'Снайпер', desc: '3000 очков в соло', icon: '🎯', coins: 200 },
+  { id: 'combo_master', name: 'Мастер комбо', desc: 'Комбо x15', icon: '💎', coins: 500 },
+  { id: 'duel_100', name: 'Дуэлянт 3', desc: '100 побед в дуэлях', icon: '⚔️', coins: 500 },
+  { id: 'win_streak_5', name: 'Серия побед', desc: '5 побед подряд', icon: '🔥', coins: 300 },
+  { id: 'domination', name: 'Разгром', desc: 'Победить с разницей 500+', icon: '💀', coins: 150 },
+  { id: 'friends_5', name: 'Душа компании', desc: '5 друзей', icon: '👥', coins: 200 },
+  { id: 'mentor', name: 'Наставник', desc: '5 рефералов', icon: '📣', coins: 500 },
+  { id: 'speaker', name: 'Оратор', desc: 'Отправить 100 эмодзи', icon: '💌', coins: 50 },
+  { id: 'shopaholic', name: 'Шопоголик', desc: 'Потратить 5000 монет', icon: '🛒', coins: 500 },
+  { id: 'tournaments_10', name: 'Турнирный боец', desc: '10 турниров', icon: '🏟️', coins: 500 }
 ];
 const QUEST_POOL = [
   { type: 'play_solo', target: 3, reward: 60, text: 'Сыграй 3 соло-игры' },
@@ -330,6 +409,11 @@ function publicProfile(userId) {
     referredBy: p.referredBy || null,
     referralRewarded: !!p.referralRewarded,
     puzzleBest: p.puzzleBest || 0,
+    coinsSpent: p.coinsSpent || 0,
+    emoteCount: p.emoteCount || 0,
+    duelWinStreak: p.duelWinStreak || 0,
+    duelBestWinStreak: p.duelBestWinStreak || 0,
+    tournamentsPlayed: p.tournamentsPlayed || 0,
     puzzleLastDate: p.puzzleLastDate || null,
     tournamentWins: (p.tournamentWins || []).slice(),
     duelWins: p.duelWins || 0, duelLosses: p.duelLosses || 0, soloGames: p.soloGames || 0,
@@ -358,6 +442,9 @@ function ensureProfile(userId) {
       dailyQuests: null,
       referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
       puzzleBest: 0, puzzleLastDate: null, tournamentWins: [],
+      coinsSpent: 0, emoteCount: 0,
+      duelWinStreak: 0, duelBestWinStreak: 0,
+      tournamentsPlayed: 0,
       duelWins: 0, duelLosses: 0, soloGames: 0,
       updatedAt: Date.now()
     };
@@ -408,6 +495,18 @@ function checkAchievements(userId, context) {
   if ((p.coins || 0) >= 1000) unlockAchievement(userId, 'rich_1000');
   const allSkins = Object.keys(SKIN_CATALOG);
   if (allSkins.every(s => (p.skins || []).includes(s))) unlockAchievement(userId, 'collector_all');
+  // Новые проверки
+  if (soloGames >= 50) unlockAchievement(userId, 'sunrise');
+  if (soloGames >= 200) unlockAchievement(userId, 'marathon_plus');
+  if (score >= 3000) unlockAchievement(userId, 'sniper');
+  if (combo >= 15) unlockAchievement(userId, 'combo_master');
+  if ((p.duelWins || 0) >= 100) unlockAchievement(userId, 'duel_100');
+  if ((p.duelBestWinStreak || 0) >= 5) unlockAchievement(userId, 'win_streak_5');
+  if ((p.friends || []).length >= 5) unlockAchievement(userId, 'friends_5');
+  if ((p.referralCount || 0) >= 5) unlockAchievement(userId, 'mentor');
+  if ((p.emoteCount || 0) >= 100) unlockAchievement(userId, 'speaker');
+  if ((p.coinsSpent || 0) >= 5000) unlockAchievement(userId, 'shopaholic');
+  if ((p.tournamentsPlayed || 0) >= 10) unlockAchievement(userId, 'tournaments_10');
 }
 
 function applyReferral(newUserId, referrerId) {
@@ -592,20 +691,17 @@ function getTournamentIdForDate(d) {
 }
 
 function getTournamentSunday() {
-  // Возвращает дату ближайшего воскресенья, которое ещё не прошло (по МСК)
   const now = new Date();
-  const mskNow = new Date(now.getTime() + 3 * 3600 * 1000); // условно МСК как UTC+3
+  const mskNow = new Date(now.getTime() + 3 * 3600 * 1000);
   const day = mskNow.getUTCDay();
-  let diff = (7 - day) % 7; // сколько дней до воскресенья
-  // Если сегодня вс, но уже после 18:00 МСК — берём следующее
+  let diff = (7 - day) % 7;
   if (day === 0) {
     const h = mskNow.getUTCHours();
     if (h >= 18) diff = 7;
   }
   const sunday = new Date(mskNow);
   sunday.setUTCDate(sunday.getUTCDate() + diff);
-  sunday.setUTCHours(18, 0, 0, 0); // 18:00 МСК
-  // Конвертируем обратно в UTC
+  sunday.setUTCHours(18, 0, 0, 0);
   return new Date(sunday.getTime() - 3 * 3600 * 1000);
 }
 
@@ -654,6 +750,7 @@ function registerForTournament(userId) {
   p.coins -= TOURNAMENT_ENTRY;
   p.updatedAt = Date.now();
   tournament.players.push({ userId, name: p.name, rating: p.rating, joinedAt: Date.now() });
+  p.tournamentsPlayed = (p.tournamentsPlayed || 0) + 1;
   savePlayers();
   saveTournament();
   return { ok: true, coins: p.coins };
@@ -946,6 +1043,106 @@ app.get('/api/puzzle', (req, res) => {
     res.json({ date: dateStr, sequence });
   } catch (e) { res.status(500).json({ error: 'server_error' }); }
 });
+app.get('/admin/stats', (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) {
+    res.status(403).send('Forbidden. Use ?key=YOUR_ADMIN_SECRET');
+    return;
+  }
+
+  const today = todayStr();
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  const activeToday = (stats.dailyActive[today] || []).length;
+  let activeWeek = 0, activeMonth = 0;
+  for (const day of Object.keys(stats.dailyActive)) {
+    if (day >= weekAgo) activeWeek += stats.dailyActive[day].length;
+    if (day >= monthAgo) activeMonth += stats.dailyActive[day].length;
+  }
+
+  const totalPlayers = Object.keys(players).length;
+  const totalGames = stats.totalGamesSolo + stats.totalGamesDuel + stats.totalGamesTournament;
+  const avgScore = stats.totalGamesSolo > 0 ? Math.round(stats.totalScoreSolo / stats.totalGamesSolo) : 0;
+
+  const totalCoins = Object.keys(players).reduce((s, uid) => s + (players[uid].coins || 0), 0);
+  const totalSkinsOwned = Object.keys(players).reduce((s, uid) => s + (players[uid].skins || []).length, 0);
+
+  const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Block Blast Duel — Аналитика</title>
+<style>
+body { font-family: system-ui, sans-serif; background: #0a0520; color: #fff; padding: 20px; max-width: 900px; margin: 0 auto; }
+h1 { color: #a55eea; margin-bottom: 20px; }
+h2 { color: #1e90ff; margin: 25px 0 10px; font-size: 18px; }
+.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin-bottom: 10px; display: inline-block; margin-right: 10px; min-width: 140px; }
+.card .value { font-size: 28px; font-weight: 900; color: #ffd93b; }
+.card .label { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
+th { color: rgba(255,255,255,0.5); text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+td.num { font-variant-numeric: tabular-nums; color: #ffd93b; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>📊 Block Blast Duel — Аналитика</h1>
+
+<h2>Общее</h2>
+<div>
+<div class="card"><div class="value">${totalPlayers}</div><div class="label">Всего игроков</div></div>
+<div class="card"><div class="value">${online.size}</div><div class="label">Онлайн сейчас</div></div>
+<div class="card"><div class="value">${totalGames}</div><div class="label">Сыграно игр</div></div>
+<div class="card"><div class="value">${avgScore}</div><div class="label">Средний счёт</div></div>
+<div class="card"><div class="value">${stats.maxScoreSolo}</div><div class="label">Макс. счёт</div></div>
+<div class="card"><div class="value">${totalCoins}</div><div class="label">Монет у игроков</div></div>
+</div>
+
+<h2>Активность</h2>
+<div>
+<div class="card"><div class="value">${activeToday}</div><div class="label">Сегодня</div></div>
+<div class="card"><div class="value">${activeWeek}</div><div class="label">За 7 дней</div></div>
+<div class="card"><div class="value">${activeMonth}</div><div class="label">За 30 дней</div></div>
+</div>
+
+<h2>По режимам</h2>
+<table>
+<tr><th>Режим</th><th>Игр</th></tr>
+<tr><td>Соло</td><td class="num">${stats.totalGamesSolo}</td></tr>
+<tr><td>Дуэли</td><td class="num">${stats.totalGamesDuel}</td></tr>
+<tr><td>Турниры</td><td class="num">${stats.totalGamesTournament}</td></tr>
+</table>
+
+<h2>Вовлечение (сколько игроков доходит до N игр)</h2>
+<table>
+<tr><th>Игр сыграно</th><th>Игроков дошло</th></tr>
+${[1, 5, 10, 20, 50, 100].map(b => `<tr><td>${b}</td><td class="num">${stats.playersByGames[b] || 0}</td></tr>`).join('')}
+</table>
+
+<h2>Новые игроки по дням</h2>
+<table>
+<tr><th>Дата</th><th>Новых</th><th>Активных</th></tr>
+${Object.keys(stats.newPlayersByDay).sort().reverse().slice(0, 14).map(d =>
+    `<tr><td>${d}</td><td class="num">${stats.newPlayersByDay[d]}</td><td class="num">${(stats.dailyActive[d] || []).length}</td></tr>`
+  ).join('')}
+</table>
+
+<h2>Прочее</h2>
+<div>
+<div class="card"><div class="value">${stats.totalEmotes}</div><div class="label">Эмодзи отправлено</div></div>
+<div class="card"><div class="value">${stats.totalSkinsBought}</div><div class="label">Скинов куплено</div></div>
+<div class="card"><div class="value">${totalSkinsOwned}</div><div class="label">Скинов у игроков</div></div>
+</div>
+
+<p style="margin-top:30px;color:rgba(255,255,255,0.4);font-size:12px;">
+Обновлено: ${new Date().toISOString()} · МСК: ${new Date(Date.now() + 3 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19)}
+</p>
+</body>
+</html>`;
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
+});
 app.get('/health', (req, res) => {
   res.status(200).json({
     ok: true, uptime: Math.floor(process.uptime()),
@@ -985,12 +1182,14 @@ io.on('connection', (socket) => {
         updatedAt: Date.now()
       };
       players[userId] = p;
+      trackNewPlayer();
       if (ref && typeof ref === 'string' && ref !== userId) applyReferral(userId, ref);
     } else if (incomingName && incomingName !== p.name) {
       p.name = incomingName; p.updatedAt = Date.now();
     }
     migrateProfile(p, userId);
     getOrCreateDailyQuests(userId);
+    trackActive(userId);
     savePlayers();
     socket.data.userId = userId;
     if (cb) cb({ profile: publicProfile(userId), isNew, season: getActiveSeasonal(), tournament: getTournamentForClient() });
@@ -1022,6 +1221,9 @@ io.on('connection', (socket) => {
     const cost = SKIN_CATALOG[skinId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
     p.coins -= cost; p.skins.push(skinId);
+    p.coinsSpent = (p.coinsSpent || 0) + cost;
+    stats.totalSkinsBought = (stats.totalSkinsBought || 0) + 1;
+    saveStats();
     if (skinId.startsWith('autumn_') && !p.titles.includes('autumn_2025')) p.titles.push('autumn_2025');
     p.updatedAt = Date.now();
     if (p.skins.length >= 2) unlockAchievement(userId, 'buy_first_skin');
@@ -1046,7 +1248,8 @@ io.on('connection', (socket) => {
     if (p.backgrounds.includes(bgId)) { if (cb) cb({ error: 'already_owned' }); return; }
     const cost = BACKGROUND_CATALOG[bgId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
-    p.coins -= cost; p.backgrounds.push(bgId); p.updatedAt = Date.now(); savePlayers();
+    p.coins -= cost; p.backgrounds.push(bgId);
+    p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
   socket.on('setActiveBackground', async ({ userId, bgId }, cb) => {
@@ -1065,7 +1268,9 @@ io.on('connection', (socket) => {
     if (p.avatars.includes(avatarId)) { if (cb) cb({ error: 'already_owned' }); return; }
     const cost = AVATAR_CATALOG[avatarId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
-    p.coins -= cost; p.avatars.push(avatarId); p.updatedAt = Date.now(); savePlayers();
+    p.coins -= cost;
+
+    p.avatars.push(avatarId); p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
   socket.on('setActiveAvatar', async ({ userId, avatarId }, cb) => {
@@ -1150,6 +1355,11 @@ io.on('connection', (socket) => {
     if (maxCombo > (p.stats.maxCombo || 0)) p.stats.maxCombo = maxCombo;
     p.updatedAt = Date.now();
     if (score > p.bestScore) p.bestScore = score;
+    stats.totalGamesSolo++;
+    stats.totalScoreSolo += score;
+    if (score > stats.maxScoreSolo) stats.maxScoreSolo = score;
+    trackGamesBucket(p.stats.soloGames || 0);
+    saveStats();
 
     updateQuestProgress(userId, 'play_solo', 1);
     if (linesCleared > 0) updateQuestProgress(userId, 'lines', linesCleared);
@@ -1331,6 +1541,15 @@ io.on('connection', (socket) => {
       const opp = online.get(o.opponentId);
       if (opp && opp.socket) opp.socket.emit('oppEmote', { emoji });
     }
+    stats.totalEmotes = (stats.totalEmotes || 0) + 1;
+    saveStats();
+    const p = players[userId];
+    if (p) {
+      p.emoteCount = (p.emoteCount || 0) + 1;
+      if (p.emoteCount === 100) {
+        checkAchievements(userId, {});
+      }
+    }
   });
 
   // ---- GAME ----
@@ -1465,6 +1684,8 @@ io.on('connection', (socket) => {
       loserDelta = calcDuelDelta(loser.rating, winner.rating, false);
       winner.rating += winnerDelta;
       winner.duelWins = (winner.duelWins || 0) + 1;
+      winner.duelWinStreak = (winner.duelWinStreak || 0) + 1;
+      if (winner.duelWinStreak > (winner.duelBestWinStreak || 0)) winner.duelBestWinStreak = winner.duelWinStreak;
       winner.stats.duelWins = (winner.stats.duelWins || 0) + 1;
       winner.stats.duelGames = (winner.stats.duelGames || 0) + 1;
       winner.coins = (winner.coins || 0) + DUEL_WIN_COINS;
@@ -1472,6 +1693,7 @@ io.on('connection', (socket) => {
       winner.updatedAt = Date.now();
       winnerNewRating = winner.rating;
       loser.rating = Math.max(0, loser.rating - loserDelta);
+      loser.duelWinStreak = 0;
       loser.duelLosses = (loser.duelLosses || 0) + 1;
       loser.stats.duelGames = (loser.stats.duelGames || 0) + 1;
       loser.coins = (loser.coins || 0) + DUEL_LOSS_COINS;
@@ -1483,10 +1705,18 @@ io.on('connection', (socket) => {
       updateQuestProgress(winnerId, 'win_duel', 1);
       updateQuestProgress(loserId, 'play_duel', 1);
       checkAchievements(winnerId, { gamePlayed: true });
+      // Разгром: победитель набрал на 500+ больше
+      const winnerO = online.get(winnerId);
+      const loserO = online.get(loserId);
+      const wScore = winnerO ? (winnerO.score || 0) : 0;
+      const lScore = loserO ? (loserO.score || 0) : 0;
+      if (wScore - lScore >= 500) unlockAchievement(winnerId, 'domination');
       checkAchievements(loserId, { gamePlayed: true });
       grantReferralIfNeeded(winnerId);
       grantReferralIfNeeded(loserId);
       savePlayers();
+      stats.totalGamesDuel++;
+      saveStats();
     }
 
     const opp = winnerId ? online.get(winnerId) : null;
