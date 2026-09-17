@@ -73,6 +73,10 @@ function migrateProfile(p, uid) {
   if (typeof p.stats.duelGames !== 'number') p.stats.duelGames = 0;
   if (typeof p.stats.duelWins !== 'number') p.stats.duelWins = 0;
   if (typeof p.dailyQuests !== 'object') p.dailyQuests = null;
+  if (typeof p.referredBy !== 'string') p.referredBy = null;
+  if (typeof p.referralRewarded !== 'boolean') p.referralRewarded = false;
+  if (typeof p.referralCount !== 'number') p.referralCount = 0;
+  if (!Array.isArray(p.referrals)) p.referrals = [];
   if (typeof p.name !== 'string' || !p.name.trim()) p.name = 'Игрок-' + String(uid || '').slice(-4).toUpperCase();
 }
 
@@ -100,40 +104,26 @@ function getOrthodoxEaster(year) {
   dt.setDate(dt.getDate() + 13);
   return dt;
 }
-
 function getSeasonalWindows() {
   const now = new Date();
   const y = now.getFullYear();
   const w = [];
   for (const yy of [y - 1, y, y + 1]) {
-    // Новый год: 29.12(year) - 04.01(year+1)
     w.push({
-      id: 'xmas',
-      start: new Date(yy, 11, 29, 0, 0, 0),
-      end: new Date(yy + 1, 0, 4, 23, 59, 59),
+      id: 'xmas', start: new Date(yy, 11, 29), end: new Date(yy + 1, 0, 4, 23, 59, 59),
       skins: ['xmas_tree', 'xmas_snowflake', 'xmas_garland']
     });
-    // Хэллоуин: 28.10 - 03.11
     w.push({
-      id: 'halloween',
-      start: new Date(yy, 9, 28, 0, 0, 0),
-      end: new Date(yy, 10, 3, 23, 59, 59),
+      id: 'halloween', start: new Date(yy, 9, 28), end: new Date(yy, 10, 3, 23, 59, 59),
       skins: ['halloween_skull', 'halloween_bat']
     });
-    // Пасха: -3 / +3 от православной
     const easter = getOrthodoxEaster(yy);
     const eStart = new Date(easter); eStart.setDate(eStart.getDate() - 3); eStart.setHours(0, 0, 0, 0);
     const eEnd = new Date(easter); eEnd.setDate(eEnd.getDate() + 3); eEnd.setHours(23, 59, 59, 999);
-    w.push({
-      id: 'easter',
-      start: eStart,
-      end: eEnd,
-      skins: ['easter_egg', 'easter_bunny']
-    });
+    w.push({ id: 'easter', start: eStart, end: eEnd, skins: ['easter_egg', 'easter_bunny'] });
   }
   return w;
 }
-
 function getActiveSeasonal() {
   const now = new Date();
   const activeSet = new Set();
@@ -144,7 +134,7 @@ function getActiveSeasonal() {
       menuTheme = w.id;
     }
   }
-  return { skins: Array.from(activeSet), menuTheme };
+  return { skins: Array.from(activeSet), menuTheme: menuTheme };
 }
 
 // ============ CONSTANTS ============
@@ -155,33 +145,28 @@ const SOLO_COIN_DIVISOR = 40;
 const DUEL_WIN_COINS = 80;
 const DUEL_LOSS_COINS = 15;
 const STARTING_COINS = 50;
+const REFERRAL_REWARD = 100;
 const ROOM_EXPIRY = 10 * 60 * 1000;
+const EMOTE_COOLDOWN = 3000;
+const EMOTE_LIST = ['😂', '👍', '😱', '🔥', '😡', '👋'];
 
 const SKIN_CATALOG = {
   classic: 0, neon: 150, bubble: 300, retro: 500,
   ice: 800, lava: 1200, galaxy: 2000, gold: 3000,
   autumn_leaf: 500, autumn_pumpkin: 600, autumn_acorn: 400,
-  // Сезонные
   xmas_tree: 400, xmas_snowflake: 350, xmas_garland: 500,
   halloween_skull: 450, halloween_bat: 500,
   easter_egg: 400, easter_bunny: 500,
-  // Чемпионские (только за победу в турнире)
   champ_lightning: 0, champ_crown: 0, champ_phoenix: 0, champ_amethyst: 0
 };
-
 const BACKGROUND_CATALOG = {
   default: 0, forest: 300, ocean: 300, night: 400,
   autumn: 500, sunset: 500, pixel: 600, space: 800,
   anim_aurora: 500, anim_space: 800, anim_sunset: 500,
   anim_ocean: 500, anim_neon: 800, anim_fire: 600,
-  // Чемпионские
   champ_arena: 0, champ_nebula: 0, champ_hall: 0
 };
-
-const AVATAR_CATALOG = {
-  0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
-  6: 200, 7: 200, 8: 200, 9: 200, 10: 200, 11: 200
-};
+const AVATAR_CATALOG = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 200, 7: 200, 8: 200, 9: 200, 10: 200, 11: 200 };
 
 const SEASONAL_SKINS = ['xmas_tree', 'xmas_snowflake', 'xmas_garland', 'halloween_skull', 'halloween_bat', 'easter_egg', 'easter_bunny'];
 const CHAMPION_SKINS = ['champ_lightning', 'champ_crown', 'champ_phoenix', 'champ_amethyst'];
@@ -200,7 +185,6 @@ const TITLE_DEFS = [
   { id: 'gladiator', name: 'Гладиатор', req: 'ach:duel_50' },
   { id: 'autumn_2025', name: 'Осень 2025', req: 'season' }
 ];
-
 const ACHIEVEMENT_DEFS = [
   { id: 'first_game', name: 'Первый шаг', desc: 'Сыграйте первую игру', icon: '🎮', coins: 50 },
   { id: 'first_win', name: 'Первая победа', desc: 'Победите в дуэли', icon: '🏆', coins: 100 },
@@ -217,9 +201,9 @@ const ACHIEVEMENT_DEFS = [
   { id: 'friend', name: 'Не один', desc: 'Добавить друга', icon: '👫', coins: 50 },
   { id: 'rich_1000', name: 'Богач', desc: 'Накопить 1000 монет', icon: '💰', coins: 100 },
   { id: 'buy_first_skin', name: 'Модник', desc: 'Купить первый скин', icon: '🎨', coins: 100 },
-  { id: 'collector_all', name: 'Коллекционер', desc: 'Собрать все скины', icon: '🏅', coins: 2000 }
+  { id: 'collector_all', name: 'Коллекционер', desc: 'Собрать все скины', icon: '🏅', coins: 2000 },
+  { id: 'referral_1', name: 'Друг друга', desc: 'Пригласить друга по ссылке', icon: '🤝', coins: 100 }
 ];
-
 const QUEST_POOL = [
   { type: 'play_solo', target: 3, reward: 60, text: 'Сыграй 3 соло-игры' },
   { type: 'play_solo', target: 5, reward: 100, text: 'Сыграй 5 соло-игр' },
@@ -232,16 +216,11 @@ const QUEST_POOL = [
   { type: 'score_solo', target: 300, reward: 60, text: 'Набери 300 очков' },
   { type: 'score_solo', target: 800, reward: 120, text: 'Набери 800 очков' }
 ];
-
 const RANKS = [
-  { min: 0, name: 'Новичок', icon: '🌱' },
-  { min: 200, name: 'Бронза', icon: '🥉' },
-  { min: 600, name: 'Серебро', icon: '🥈' },
-  { min: 1500, name: 'Золото', icon: '🥇' },
-  { min: 3000, name: 'Платина', icon: '💎' },
-  { min: 5000, name: 'Алмаз', icon: '💠' },
-  { min: 8000, name: 'Мастер', icon: '👑' },
-  { min: 12000, name: 'Грандмастер', icon: '⚜️' }
+  { min: 0, name: 'Новичок', icon: '🌱' }, { min: 200, name: 'Бронза', icon: '🥉' },
+  { min: 600, name: 'Серебро', icon: '🥈' }, { min: 1500, name: 'Золото', icon: '🥇' },
+  { min: 3000, name: 'Платина', icon: '💎' }, { min: 5000, name: 'Алмаз', icon: '💠' },
+  { min: 8000, name: 'Мастер', icon: '👑' }, { min: 12000, name: 'Грандмастер', icon: '⚜️' }
 ];
 function getRank(rating) {
   let r = RANKS[0];
@@ -294,6 +273,9 @@ function publicProfile(userId) {
     activeBackground: p.activeBackground || 'default',
     avatars: (p.avatars || [0, 1]).slice(),
     activeAvatar: typeof p.activeAvatar === 'number' ? p.activeAvatar : 0,
+    referralCount: p.referralCount || 0,
+    referredBy: p.referredBy || null,
+    referralRewarded: !!p.referralRewarded,
     duelWins: p.duelWins || 0, duelLosses: p.duelLosses || 0, soloGames: p.soloGames || 0,
     rank: getRank(p.rating),
     seasonal: getActiveSeasonal()
@@ -310,16 +292,15 @@ function ensureProfile(userId) {
   if (!players[userId]) {
     players[userId] = {
       name: 'Игрок-' + String(userId).slice(-4).toUpperCase(),
-      rating: 0, bestScore: 0,
-      coins: STARTING_COINS,
+      rating: 0, bestScore: 0, coins: STARTING_COINS,
       skins: ['classic'], activeSkin: 'classic',
       friends: [], friendRequests: [],
-      achievements: [],
-      titles: ['rookie'], activeTitle: 'rookie',
+      achievements: [], titles: ['rookie'], activeTitle: 'rookie',
       backgrounds: ['default'], activeBackground: 'default',
       avatars: [0, 1], activeAvatar: 0,
       stats: { soloGames: 0, totalLines: 0, maxCombo: 0, duelGames: 0, duelWins: 0 },
       dailyQuests: null,
+      referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
       duelWins: 0, duelLosses: 0, soloGames: 0,
       updatedAt: Date.now()
     };
@@ -372,6 +353,40 @@ function checkAchievements(userId, context) {
   if (allSkins.every(s => (p.skins || []).includes(s))) unlockAchievement(userId, 'collector_all');
 }
 
+function applyReferral(newUserId, referrerId) {
+  if (!newUserId || !referrerId) return;
+  if (newUserId === referrerId) return;
+  const newP = players[newUserId];
+  const refP = players[referrerId];
+  if (!newP || !refP) return;
+  if (newP.referredBy) return;
+  newP.referredBy = referrerId;
+  newP.updatedAt = Date.now();
+  savePlayers();
+}
+
+function grantReferralIfNeeded(userId) {
+  const p = players[userId];
+  if (!p || !p.referredBy || p.referralRewarded) return null;
+  const refP = players[p.referredBy];
+  if (!refP) { p.referralRewarded = true; savePlayers(); return null; }
+  p.coins = (p.coins || 0) + REFERRAL_REWARD;
+  refP.coins = (refP.coins || 0) + REFERRAL_REWARD;
+  refP.referralCount = (refP.referralCount || 0) + 1;
+  if (!Array.isArray(refP.referrals)) refP.referrals = [];
+  refP.referrals.push(userId);
+  p.referralRewarded = true;
+  p.updatedAt = Date.now();
+  refP.updatedAt = Date.now();
+  savePlayers();
+  unlockAchievement(p.referredBy, 'referral_1');
+  const refO = online.get(p.referredBy);
+  if (refO && refO.socket) {
+    refO.socket.emit('referralRewarded', { bonus: REFERRAL_REWARD, fromName: p.name, count: refP.referralCount });
+  }
+  return { bonus: REFERRAL_REWARD, referrer: p.referredBy };
+}
+
 function getOrCreateDailyQuests(userId) {
   const p = players[userId];
   if (!p) return null;
@@ -384,7 +399,7 @@ function getOrCreateDailyQuests(userId) {
     const q = pool.splice(idx, 1)[0];
     quests.push({ id: 'q_' + Date.now() + '_' + i, type: q.type, target: q.target, reward: q.reward, text: q.text, progress: 0, claimed: false });
   }
-  p.dailyQuests = { date: today, quests };
+  p.dailyQuests = { date: today, quests: quests };
   savePlayers();
   return p.dailyQuests;
 }
@@ -471,9 +486,7 @@ function grantChampionReward(userId, rewardId) {
     if (!p.skins.includes(rewardId)) p.skins.push(rewardId);
   } else if (CHAMPION_BACKGROUNDS.indexOf(rewardId) !== -1) {
     if (!p.backgrounds.includes(rewardId)) p.backgrounds.push(rewardId);
-  } else {
-    return false;
-  }
+  } else return false;
   p.updatedAt = Date.now();
   savePlayers();
   const o = online.get(userId);
@@ -515,12 +528,7 @@ app.get('/api/leaderboard', (req, res) => {
     res.json(buildLeaderboard(type, userId));
   } catch (e) { res.status(500).json({ error: 'server_error' }); }
 });
-
-app.get('/api/season', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.json(getActiveSeasonal());
-});
-
+app.get('/api/season', (req, res) => { res.set('Cache-Control', 'no-store'); res.json(getActiveSeasonal()); });
 app.get('/health', (req, res) => {
   res.status(200).json({
     ok: true, uptime: Math.floor(process.uptime()),
@@ -534,7 +542,7 @@ app.get('/health', (req, res) => {
 // ============ SOCKET ============
 io.on('connection', (socket) => {
 
-  socket.on('syncProfile', async ({ userId, name, localRating, localBest }, cb) => {
+  socket.on('syncProfile', async ({ userId, name, localRating, localBest, ref }, cb) => {
     await playersReady;
     if (!userId || typeof userId !== 'string' || userId.length > 64) { if (cb) cb({ error: 'bad_user_id' }); return; }
     let p = players[userId];
@@ -553,10 +561,14 @@ io.on('connection', (socket) => {
         avatars: [0, 1], activeAvatar: 0,
         stats: { soloGames: 0, totalLines: 0, maxCombo: 0, duelGames: 0, duelWins: 0 },
         dailyQuests: null,
+        referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
         duelWins: 0, duelLosses: 0, soloGames: 0,
         updatedAt: Date.now()
       };
       players[userId] = p;
+      if (ref && typeof ref === 'string' && ref !== userId) {
+        applyReferral(userId, ref);
+      }
     } else if (incomingName && incomingName !== p.name) {
       p.name = incomingName; p.updatedAt = Date.now();
     }
@@ -564,7 +576,7 @@ io.on('connection', (socket) => {
     getOrCreateDailyQuests(userId);
     savePlayers();
     socket.data.userId = userId;
-    if (cb) cb({ profile: publicProfile(userId), isNew, season: getActiveSeasonal() });
+    if (cb) cb({ profile: publicProfile(userId), isNew: isNew, season: getActiveSeasonal() });
   });
 
   socket.on('setName', async ({ userId, name }, cb) => {
@@ -592,8 +604,7 @@ io.on('connection', (socket) => {
     }
     const cost = SKIN_CATALOG[skinId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
-    p.coins -= cost;
-    p.skins.push(skinId);
+    p.coins -= cost; p.skins.push(skinId);
     if (skinId.startsWith('autumn_') && !p.titles.includes('autumn_2025')) p.titles.push('autumn_2025');
     p.updatedAt = Date.now();
     if (p.skins.length >= 2) unlockAchievement(userId, 'buy_first_skin');
@@ -601,17 +612,14 @@ io.on('connection', (socket) => {
     savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
   socket.on('setActiveSkin', async ({ userId, skinId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const p = ensureProfile(userId);
     if (!p.skins.includes(skinId)) { if (cb) cb({ error: 'not_owned' }); return; }
-    p.activeSkin = skinId; p.updatedAt = Date.now();
-    savePlayers();
+    p.activeSkin = skinId; p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
   socket.on('buyBackground', async ({ userId, bgId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
@@ -621,21 +629,17 @@ io.on('connection', (socket) => {
     if (p.backgrounds.includes(bgId)) { if (cb) cb({ error: 'already_owned' }); return; }
     const cost = BACKGROUND_CATALOG[bgId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
-    p.coins -= cost; p.backgrounds.push(bgId);
-    p.updatedAt = Date.now(); savePlayers();
+    p.coins -= cost; p.backgrounds.push(bgId); p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
   socket.on('setActiveBackground', async ({ userId, bgId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const p = ensureProfile(userId);
     if (!p.backgrounds.includes(bgId)) { if (cb) cb({ error: 'not_owned' }); return; }
-    p.activeBackground = bgId; p.updatedAt = Date.now();
-    savePlayers();
+    p.activeBackground = bgId; p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
   socket.on('buyAvatar', async ({ userId, avatarId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
@@ -644,28 +648,23 @@ io.on('connection', (socket) => {
     if (p.avatars.includes(avatarId)) { if (cb) cb({ error: 'already_owned' }); return; }
     const cost = AVATAR_CATALOG[avatarId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
-    p.coins -= cost; p.avatars.push(avatarId);
-    p.updatedAt = Date.now(); savePlayers();
+    p.coins -= cost; p.avatars.push(avatarId); p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
   socket.on('setActiveAvatar', async ({ userId, avatarId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const p = ensureProfile(userId);
     if (!p.avatars.includes(avatarId)) { if (cb) cb({ error: 'not_owned' }); return; }
-    p.activeAvatar = avatarId; p.updatedAt = Date.now();
-    savePlayers();
+    p.activeAvatar = avatarId; p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
   socket.on('setActiveTitle', async ({ userId, titleId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const p = ensureProfile(userId);
     if (!p.titles.includes(titleId)) { if (cb) cb({ error: 'not_owned' }); return; }
-    p.activeTitle = titleId; p.updatedAt = Date.now();
-    savePlayers();
+    p.activeTitle = titleId; p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
 
@@ -675,14 +674,12 @@ io.on('connection', (socket) => {
     if (!p) { if (cb) cb({ list: ACHIEVEMENT_DEFS, unlocked: [] }); return; }
     if (cb) cb({ list: ACHIEVEMENT_DEFS, unlocked: (p.achievements || []).slice() });
   });
-
   socket.on('getQuests', async ({ userId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const dq = getOrCreateDailyQuests(userId);
     if (cb) cb(dq);
   });
-
   socket.on('claimQuest', async ({ userId, questId }, cb) => {
     await playersReady;
     if (!userId || !questId) { if (cb) cb({ error: 'bad_input' }); return; }
@@ -726,12 +723,16 @@ io.on('connection', (socket) => {
     if (linesCleared > 0) updateQuestProgress(userId, 'lines', linesCleared);
     if (maxCombo > 0) updateQuestProgress(userId, 'combo', maxCombo);
     if (score > 0) updateQuestProgress(userId, 'score_solo', score);
-    checkAchievements(userId, { gamePlayed: true, soloScore: score, maxCombo });
+    checkAchievements(userId, { gamePlayed: true, soloScore: score, maxCombo: maxCombo });
+
+    const refResult = grantReferralIfNeeded(userId);
+    let refBonus = 0;
+    if (refResult) refBonus = refResult.bonus;
 
     savePlayers();
     const newRank = getRank(p.rating);
     const rankUp = newRank.name !== prevRank.name;
-    if (cb) cb({ profile: publicProfile(userId), gain, coinsGain, rankUp: rankUp ? newRank : null });
+    if (cb) cb({ profile: publicProfile(userId), gain, coinsGain, refBonus, rankUp: rankUp ? newRank : null });
   });
 
   socket.on('getLeaderboard', ({ userId, type }, cb) => {
@@ -762,7 +763,6 @@ io.on('connection', (socket) => {
     }
     if (cb) cb({ results });
   });
-
   socket.on('sendFriendRequest', async ({ userId, targetId }, cb) => {
     await playersReady;
     if (!userId || !targetId || userId === targetId) { if (cb) cb({ error: 'bad_input' }); return; }
@@ -776,7 +776,6 @@ io.on('connection', (socket) => {
     if (targetO && targetO.socket) targetO.socket.emit('friendRequestReceived', { fromId: userId, fromName: me.name });
     if (cb) cb({ ok: true });
   });
-
   socket.on('acceptFriendRequest', async ({ userId, fromId }, cb) => {
     await playersReady;
     if (!userId || !fromId) { if (cb) cb({ error: 'bad_input' }); return; }
@@ -793,7 +792,6 @@ io.on('connection', (socket) => {
     if (fromO && fromO.socket) fromO.socket.emit('friendRequestAccepted', { byId: userId, byName: me.name });
     if (cb) cb({ ok: true });
   });
-
   socket.on('declineFriendRequest', async ({ userId, fromId }, cb) => {
     await playersReady;
     const me = players[userId]; if (!me) { if (cb) cb({ error: 'not_found' }); return; }
@@ -801,7 +799,6 @@ io.on('connection', (socket) => {
     me.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ ok: true });
   });
-
   socket.on('removeFriend', async ({ userId, friendId }, cb) => {
     await playersReady;
     const me = players[userId]; const friend = players[friendId];
@@ -810,7 +807,6 @@ io.on('connection', (socket) => {
     savePlayers();
     if (cb) cb({ ok: true });
   });
-
   socket.on('getFriends', async ({ userId }, cb) => {
     await playersReady;
     const me = players[userId];
@@ -829,7 +825,6 @@ io.on('connection', (socket) => {
     }).filter(Boolean);
     if (cb) cb({ friends, requests });
   });
-
   socket.on('inviteFriendToMatch', async ({ userId, friendId }, cb) => {
     await playersReady;
     const me = players[userId]; const friend = players[friendId];
@@ -840,7 +835,6 @@ io.on('connection', (socket) => {
     friendO.socket.emit('matchInviteReceived', { fromId: userId, fromName: me.name, fromRating: me.rating });
     if (cb) cb({ ok: true });
   });
-
   socket.on('acceptMatchInvite', async ({ userId, fromId }) => {
     await playersReady;
     const fromO = online.get(fromId);
@@ -851,11 +845,28 @@ io.on('connection', (socket) => {
     if (myO.roomId || fromO.roomId) return;
     startMatch(fromId, userId, fromO.socket, socket);
   });
-
   socket.on('declineMatchInvite', ({ userId, fromId }, cb) => {
     const fromO = online.get(fromId);
     if (fromO && fromO.socket) fromO.socket.emit('matchInviteDeclined', { byId: userId });
     if (cb) cb({ ok: true });
+  });
+
+  // ---- EMOTE ----
+  socket.on('emote', ({ emoji }) => {
+    const userId = socket.data.userId;
+    if (!userId) return;
+    if (EMOTE_LIST.indexOf(emoji) === -1) return;
+    const o = online.get(userId);
+    if (!o) return;
+    const now = Date.now();
+    if (o.lastEmoteAt && now - o.lastEmoteAt < EMOTE_COOLDOWN) return;
+    o.lastEmoteAt = now;
+    if (o.opponentId) {
+      const opp = online.get(o.opponentId);
+      if (opp && opp.socket) {
+        opp.socket.emit('oppEmote', { emoji: emoji });
+      }
+    }
   });
 
   // ---- GAME ----
@@ -864,13 +875,16 @@ io.on('connection', (socket) => {
     if (!userId) return;
     socket.data.userId = userId;
     ensureProfile(userId);
+    const wasOnline = online.has(userId) && online.get(userId).socket;
     let o = online.get(userId);
     if (!o) { o = { socket, opponentId: null, roomId: null, disconnectTimer: null, score: 0 }; online.set(userId, o); }
     else { if (o.disconnectTimer) { clearTimeout(o.disconnectTimer); o.disconnectTimer = null; } o.socket = socket; }
-    const myFriends = players[userId].friends || [];
-    for (const fid of myFriends) {
-      const fO = online.get(fid);
-      if (fO && fO.socket) fO.socket.emit('friendOnline', { userId });
+    if (!wasOnline) {
+      const myFriends = players[userId].friends || [];
+      for (const fid of myFriends) {
+        const fO = online.get(fid);
+        if (fO && fO.socket) fO.socket.emit('friendOnline', { userId, name: players[userId].name });
+      }
     }
     if (o.roomId && o.opponentId && online.has(o.opponentId)) {
       socket.join(o.roomId);
@@ -919,13 +933,11 @@ io.on('connection', (socket) => {
     socket.data.hostedRoomCode = code;
     if (cb) cb({ code });
   });
-
   socket.on('cancelRoom', () => {
     const code = socket.data.hostedRoomCode;
     if (code && customRooms.has(code)) customRooms.delete(code);
     socket.data.hostedRoomCode = null;
   });
-
   socket.on('joinRoom', async ({ userId, code }, cb) => {
     await playersReady;
     if (!userId || !code) { if (cb) cb({ error: 'bad_input' }); return; }
@@ -993,6 +1005,9 @@ io.on('connection', (socket) => {
       updateQuestProgress(loserId, 'play_duel', 1);
       checkAchievements(winnerId, { gamePlayed: true });
       checkAchievements(loserId, { gamePlayed: true });
+
+      grantReferralIfNeeded(winnerId);
+      grantReferralIfNeeded(loserId);
       savePlayers();
     }
 
@@ -1042,4 +1057,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Block Blast Duel v7 on http://localhost:' + PORT));
+server.listen(PORT, () => console.log('Block Blast Duel v8 on http://localhost:' + PORT));
