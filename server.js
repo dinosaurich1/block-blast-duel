@@ -65,6 +65,8 @@ const playersReady = (async () => {
         migrateProfile(p, uid);
       }
       if (typeof p.lastGameAt !== 'number') p.lastGameAt = 0;
+      if (!Array.isArray(p.emojiSets)) p.emojiSets = ['classic'];
+      if (typeof p.activeEmojiSet !== 'string') p.activeEmojiSet = 'classic';
       if (typeof p.coinsSpent !== 'number') p.coinsSpent = 0;
       if (typeof p.emoteCount !== 'number') p.emoteCount = 0;
       if (typeof p.duelWinStreak !== 'number') p.duelWinStreak = 0;
@@ -237,7 +239,38 @@ const STARTING_COINS = 50;
 const REFERRAL_REWARD = 100;
 const ROOM_EXPIRY = 10 * 60 * 1000;
 const EMOTE_COOLDOWN = 3000;
-const EMOTE_LIST = ['😂', '👍', '😱', '🔥', '😡', '👋'];
+const EMOTE_LIST = ['\uD83D\uDE02', '\uD83D\uDC4D', '\uD83D\uDE31', '\uD83D\uDD25', '\uD83D\uDE21', '\uD83D\uDC4B'];
+
+const EMOJI_SETS = {
+  classic: {
+    name: 'Classic', cost: 0,
+    emojis: ['\uD83D\uDE02', '\uD83D\uDC4D', '\uD83D\uDE31', '\uD83D\uDD25', '\uD83D\uDE21', '\uD83D\uDC4B']
+  },
+  cute: {
+    name: 'Cute', cost: 50,
+    emojis: ['\uD83E\uDD70', '\uD83D\uDE0D', '\uD83E\uDD17', '\uD83D\uDE18', '\uD83D\uDE0A', '\uD83E\uDD7A']
+  },
+  rage: {
+    name: 'Rage', cost: 100,
+    emojis: ['\uD83E\uDD2C', '\uD83D\uDE24', '\uD83D\uDE20', '\uD83D\uDC7F', '\uD83D\uDCA2', '\uD83E\uDD2F']
+  },
+  cool: {
+    name: 'Cool', cost: 150,
+    emojis: ['\uD83D\uDE0E', '\uD83E\uDD19', '\u270C\uFE0F', '\uD83D\uDC4C', '\uD83C\uDD92', '\uD83D\uDCAA']
+  },
+  party: {
+    name: 'Party', cost: 200,
+    emojis: ['\uD83C\uDF89', '\uD83C\uDF8A', '\uD83D\uDCAF', '\u26A1', '\uD83D\uDCA5', '\uD83C\uDF1F']
+  },
+  food: {
+    name: 'Food', cost: 100,
+    emojis: ['\uD83C\uDF55', '\uD83C\uDF54', '\uD83C\uDF5F', '\uD83C\uDF69', '\uD83C\uDF66', '\uD83C\uDF7F']
+  },
+  love: {
+    name: 'Love', cost: 150,
+    emojis: ['\u2764\uFE0F', '\uD83D\uDC96', '\uD83D\uDC98', '\uD83D\uDC9D', '\uD83D\uDC95', '\uD83D\uDE3B']
+  }
+};
 const TOURNAMENT_ENTRY = 100;
 const TOURNAMENT_MIN_PLAYERS = 4;
 const TOURNAMENT_MAX_PLAYERS = 8;
@@ -261,7 +294,16 @@ const BACKGROUND_CATALOG = {
   anim_ocean: 500, anim_neon: 800, anim_fire: 600,
   champ_arena: 0, champ_nebula: 0, champ_hall: 0
 };
-const AVATAR_CATALOG = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 200, 7: 200, 8: 200, 9: 200, 10: 200, 11: 200 };
+const AVATAR_CATALOG = {
+  0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0,
+  6: 200, 7: 200, 8: 200, 9: 200, 10: 200, 11: 200,
+  12: 300, 13: 300, 14: 300, 15: 300,
+  16: 400, 17: 400, 18: 400, 19: 400,
+  20: 0, 21: 0, 22: 0, 23: 0, 24: 0,
+  25: 1000, 26: 1000, 27: 1000, 28: 1000, 29: 1000
+};
+const CHAMPION_AVATARS = [20, 21, 22, 23, 24];
+
 const SEASONAL_SKINS = ['xmas_tree', 'xmas_snowflake', 'xmas_garland', 'halloween_skull', 'halloween_bat', 'easter_egg', 'easter_bunny'];
 const CHAMPION_SKINS = ['champ_lightning', 'champ_crown', 'champ_phoenix', 'champ_amethyst'];
 const CHAMPION_BACKGROUNDS = ['champ_arena', 'champ_nebula', 'champ_hall'];
@@ -411,6 +453,8 @@ function publicProfile(userId) {
     referredBy: p.referredBy || null,
     referralRewarded: !!p.referralRewarded,
     puzzleBest: p.puzzleBest || 0,
+    emojiSets: (p.emojiSets || ['classic']).slice(),
+    activeEmojiSet: p.activeEmojiSet || 'classic',
     coinsSpent: p.coinsSpent || 0,
     emoteCount: p.emoteCount || 0,
     duelWinStreak: p.duelWinStreak || 0,
@@ -445,6 +489,7 @@ function ensureProfile(userId) {
       referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
       puzzleBest: 0, puzzleLastDate: null, tournamentWins: [],
       coinsSpent: 0, emoteCount: 0,
+      emojiSets: ['classic'], activeEmojiSet: 'classic',
       duelWinStreak: 0, duelBestWinStreak: 0,
       tournamentsPlayed: 0,
       duelWins: 0, duelLosses: 0, soloGames: 0,
@@ -646,11 +691,18 @@ function startMatch(hostId, guestId, hostSocket, guestSocket, options) {
 function grantChampionReward(userId, rewardId) {
   const p = players[userId];
   if (!p) return false;
+  const champAvatarIds = [20, 21, 22, 23, 24];
+  const asNum = typeof rewardId === 'string' ? parseInt(rewardId, 10) : rewardId;
   if (CHAMPION_SKINS.indexOf(rewardId) !== -1) {
     if (!p.skins.includes(rewardId)) p.skins.push(rewardId);
   } else if (CHAMPION_BACKGROUNDS.indexOf(rewardId) !== -1) {
     if (!p.backgrounds.includes(rewardId)) p.backgrounds.push(rewardId);
-  } else return false;
+  } else if (champAvatarIds.indexOf(asNum) !== -1) {
+    if (!Array.isArray(p.avatars)) p.avatars = [0, 1];
+    if (p.avatars.indexOf(asNum) === -1) p.avatars.push(asNum);
+  } else {
+    return false;
+  }
   p.updatedAt = Date.now();
   savePlayers();
   const o = online.get(userId);
@@ -967,14 +1019,14 @@ function finishTournament(winnerId, secondId) {
   }
   tournament.semifinalists = semis;
   // Призы
-  const prizeSkinList = CHAMPION_SKINS.concat(CHAMPION_BACKGROUNDS);
+  const prizeSkinList = CHAMPION_SKINS.concat(CHAMPION_BACKGROUNDS).concat([20, 21, 22, 23, 24]);
   const w = players[winnerId];
   if (w) {
     w.coins = (w.coins || 0) + TOURNAMENT_PRIZE_1;
     if (!Array.isArray(w.tournamentWins)) w.tournamentWins = [];
     w.tournamentWins.push(tournament.id);
     // Случайная чемпионская награда из тех, которых ещё нет
-    const owned = (w.skins || []).concat(w.backgrounds || []);
+    const owned = (w.skins || []).concat(w.backgrounds || []).concat(w.avatars || []);
     const available = prizeSkinList.filter(x => !owned.includes(x));
     if (available.length > 0) {
       const pick = available[ri(available.length)];
@@ -1044,6 +1096,28 @@ app.get('/api/puzzle', (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.json({ date: dateStr, sequence });
   } catch (e) { res.status(500).json({ error: 'server_error' }); }
+});
+app.get('/admin/give-coins', async (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) {
+    res.status(403).send('Forbidden');
+    return;
+  }
+  const userId = req.query.userId;
+  const amount = parseInt(req.query.amount, 10) || 0;
+  if (!userId || !amount) {
+    res.status(400).send('Need userId and amount');
+    return;
+  }
+  const p = players[userId];
+  if (!p) {
+    res.status(404).send('User not found');
+    return;
+  }
+  p.coins = (p.coins || 0) + amount;
+  p.updatedAt = Date.now();
+  savePlayers();
+  res.json({ ok: true, userId, coins: p.coins });
 });
 app.get('/admin/stats', (req, res) => {
   const secret = process.env.ADMIN_SECRET || 'change-me';
@@ -1267,6 +1341,7 @@ io.on('connection', (socket) => {
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const p = ensureProfile(userId);
     if (!(avatarId in AVATAR_CATALOG)) { if (cb) cb({ error: 'unknown_avatar' }); return; }
+    if (CHAMPION_AVATARS.indexOf(avatarId) !== -1) { if (cb) cb({ error: 'champion_only' }); return; }
     if (p.avatars.includes(avatarId)) { if (cb) cb({ error: 'already_owned' }); return; }
     const cost = AVATAR_CATALOG[avatarId];
     if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
@@ -1289,6 +1364,33 @@ io.on('connection', (socket) => {
     const p = ensureProfile(userId);
     if (!p.titles.includes(titleId)) { if (cb) cb({ error: 'not_owned' }); return; }
     p.activeTitle = titleId; p.updatedAt = Date.now(); savePlayers();
+    if (cb) cb({ profile: publicProfile(userId) });
+  });
+  socket.on('buyEmojiSet', async ({ userId, setId }, cb) => {
+    await playersReady;
+    if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+    const p = ensureProfile(userId);
+    if (!EMOJI_SETS[setId]) { if (cb) cb({ error: 'unknown_set' }); return; }
+    if (p.emojiSets.indexOf(setId) !== -1) { if (cb) cb({ error: 'already_owned' }); return; }
+    const cost = EMOJI_SETS[setId].cost;
+    if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
+    p.coins -= cost;
+    p.coinsSpent = (p.coinsSpent || 0) + cost;
+    p.emojiSets.push(setId);
+    p.updatedAt = Date.now();
+    checkAchievements(userId, {});
+    savePlayers();
+    if (cb) cb({ profile: publicProfile(userId) });
+  });
+
+  socket.on('setActiveEmojiSet', async ({ userId, setId }, cb) => {
+    await playersReady;
+    if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+    const p = ensureProfile(userId);
+    if (p.emojiSets.indexOf(setId) === -1) { if (cb) cb({ error: 'not_owned' }); return; }
+    p.activeEmojiSet = setId;
+    p.updatedAt = Date.now();
+    savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
   // ---- SOLO GAME SESSION (античит) ----
@@ -1590,7 +1692,11 @@ io.on('connection', (socket) => {
   socket.on('emote', ({ emoji }) => {
     const userId = socket.data.userId;
     if (!userId) return;
-    if (EMOTE_LIST.indexOf(emoji) === -1) return;
+    let validEmoji = false;
+    for (const sid in EMOJI_SETS) {
+      if (EMOJI_SETS[sid].emojis.indexOf(emoji) !== -1) { validEmoji = true; break; }
+    }
+    if (!validEmoji) return;
     const o = online.get(userId);
     if (!o) return;
     const now = Date.now();
