@@ -1,0 +1,30 @@
+{
+  "name": "Block Blast Duel",
+  "short_name": "Block Duel",
+  "description": "Онлайн-дуэль и одиночная игра с рейтингом",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050010",
+  "theme_color": "#0a0a1a",
+  "lang": "ru",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
