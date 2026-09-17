@@ -1366,22 +1366,7 @@ io.on('connection', (socket) => {
     p.activeTitle = titleId; p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-  socket.on('buyEmojiSet', async ({ userId, setId }, cb) => {
-    await playersReady;
-    if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
-    const p = ensureProfile(userId);
-    if (!EMOJI_SETS[setId]) { if (cb) cb({ error: 'unknown_set' }); return; }
-    if (p.emojiSets.indexOf(setId) !== -1) { if (cb) cb({ error: 'already_owned' }); return; }
-    const cost = EMOJI_SETS[setId].cost;
-    if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
-    p.coins -= cost;
-    p.coinsSpent = (p.coinsSpent || 0) + cost;
-    p.emojiSets.push(setId);
-    p.updatedAt = Date.now();
-    checkAchievements(userId, {});
-    savePlayers();
-    if (cb) cb({ profile: publicProfile(userId) });
-  });
+
 
   socket.on('setActiveEmojiSet', async ({ userId, setId }, cb) => {
     await playersReady;
@@ -1413,6 +1398,48 @@ io.on('connection', (socket) => {
     }
     if (cb) cb({ sessionId });
   });
+  // ---- EMOJI SETS ----
+  socket.on('buyEmojiSet', async ({ userId, setId }, cb) => {
+    try {
+      await playersReady;
+      if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+      const p = ensureProfile(userId);
+      if (typeof EMOJI_SETS === 'undefined') { if (cb) cb({ error: 'sets_not_loaded' }); return; }
+      if (!EMOJI_SETS[setId]) { if (cb) cb({ error: 'unknown_set' }); return; }
+      if (!Array.isArray(p.emojiSets)) p.emojiSets = ['classic'];
+      if (p.emojiSets.indexOf(setId) !== -1) { if (cb) cb({ error: 'already_owned' }); return; }
+      const cost = EMOJI_SETS[setId].cost;
+      if ((p.coins || 0) < cost) { if (cb) cb({ error: 'not_enough_coins' }); return; }
+      p.coins -= cost;
+      p.coinsSpent = (p.coinsSpent || 0) + cost;
+      p.emojiSets.push(setId);
+      p.updatedAt = Date.now();
+      checkAchievements(userId, {});
+      savePlayers();
+      if (cb) cb({ profile: publicProfile(userId) });
+    } catch (err) {
+      console.error('buyEmojiSet error:', err);
+      if (cb) cb({ error: 'server_error' });
+    }
+  });
+
+  socket.on('setActiveEmojiSet', async ({ userId, setId }, cb) => {
+    try {
+      await playersReady;
+      if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+      const p = ensureProfile(userId);
+      if (!Array.isArray(p.emojiSets)) p.emojiSets = ['classic'];
+      if (p.emojiSets.indexOf(setId) === -1) { if (cb) cb({ error: 'not_owned' }); return; }
+      p.activeEmojiSet = setId;
+      p.updatedAt = Date.now();
+      savePlayers();
+      if (cb) cb({ profile: publicProfile(userId) });
+    } catch (err) {
+      console.error('setActiveEmojiSet error:', err);
+      if (cb) cb({ error: 'server_error' });
+    }
+  });
+
   socket.on('getAchievements', async ({ userId }, cb) => {
     await playersReady;
     const p = players[userId];
