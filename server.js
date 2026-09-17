@@ -134,13 +134,17 @@ function getOrthodoxEaster(year) {
 function getSeasonalWindows() {
   const now = new Date(), y = now.getFullYear(), w = [];
   for (const yy of [y - 1, y, y + 1]) {
-    w.push({ id: 'xmas', start: new Date(yy, 11, 29), end: new Date(yy + 1, 0, 4, 23, 59, 59),
-      skins: ['xmas_tree', 'xmas_snowflake', 'xmas_garland'] });
-    w.push({ id: 'halloween', start: new Date(yy, 9, 28), end: new Date(yy, 10, 3, 23, 59, 59),
-      skins: ['halloween_skull', 'halloween_bat'] });
+    w.push({
+      id: 'xmas', start: new Date(yy, 11, 29), end: new Date(yy + 1, 0, 4, 23, 59, 59),
+      skins: ['xmas_tree', 'xmas_snowflake', 'xmas_garland']
+    });
+    w.push({
+      id: 'halloween', start: new Date(yy, 9, 28), end: new Date(yy, 10, 3, 23, 59, 59),
+      skins: ['halloween_skull', 'halloween_bat']
+    });
     const easter = getOrthodoxEaster(yy);
-    const eStart = new Date(easter); eStart.setDate(eStart.getDate() - 3); eStart.setHours(0,0,0,0);
-    const eEnd = new Date(easter); eEnd.setDate(eEnd.getDate() + 3); eEnd.setHours(23,59,59,999);
+    const eStart = new Date(easter); eStart.setDate(eStart.getDate() - 3); eStart.setHours(0, 0, 0, 0);
+    const eEnd = new Date(easter); eEnd.setDate(eEnd.getDate() + 3); eEnd.setHours(23, 59, 59, 999);
     w.push({ id: 'easter', start: eStart, end: eEnd, skins: ['easter_egg', 'easter_bunny'] });
   }
   return w;
@@ -189,10 +193,10 @@ const BACKGROUND_CATALOG = {
   anim_ocean: 500, anim_neon: 800, anim_fire: 600,
   champ_arena: 0, champ_nebula: 0, champ_hall: 0
 };
-const AVATAR_CATALOG = { 0:0,1:0,2:0,3:0,4:0,5:0,6:200,7:200,8:200,9:200,10:200,11:200 };
-const SEASONAL_SKINS = ['xmas_tree','xmas_snowflake','xmas_garland','halloween_skull','halloween_bat','easter_egg','easter_bunny'];
-const CHAMPION_SKINS = ['champ_lightning','champ_crown','champ_phoenix','champ_amethyst'];
-const CHAMPION_BACKGROUNDS = ['champ_arena','champ_nebula','champ_hall'];
+const AVATAR_CATALOG = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 200, 7: 200, 8: 200, 9: 200, 10: 200, 11: 200 };
+const SEASONAL_SKINS = ['xmas_tree', 'xmas_snowflake', 'xmas_garland', 'halloween_skull', 'halloween_bat', 'easter_egg', 'easter_bunny'];
+const CHAMPION_SKINS = ['champ_lightning', 'champ_crown', 'champ_phoenix', 'champ_amethyst'];
+const CHAMPION_BACKGROUNDS = ['champ_arena', 'champ_nebula', 'champ_hall'];
 
 const TITLE_DEFS = [
   { id: 'rookie', name: 'Новичок', req: 'auto' },
@@ -260,7 +264,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v | 0));
 
 function todayStr() {
   const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 // ============ PUZZLE OF THE DAY ============
@@ -271,14 +275,14 @@ function hashCode(str) {
 }
 function seededRandom(seed) {
   let s = seed;
-  return function() {
+  return function () {
     s = (s * 9301 + 49297) % 233280;
     return s / 233280;
   };
 }
 function genPuzzleSequence(dateStr, count) {
   const rand = seededRandom(hashCode('puzzle_' + dateStr));
-  const COLORS = ['#ff4757','#ffa502','#ffdd59','#2ed573','#1e90ff','#a55eea','#ff6b81','#00d2d3'];
+  const COLORS = ['#ff4757', '#ffa502', '#ffdd59', '#2ed573', '#1e90ff', '#a55eea', '#ff6b81', '#00d2d3'];
   const seq = [];
   for (let i = 0; i < count; i++) {
     const t = [];
@@ -290,7 +294,7 @@ function genPuzzleSequence(dateStr, count) {
 
 function genSequence(count) {
   const seq = [];
-  const COLORS = ['#ff4757','#ffa502','#ffdd59','#2ed573','#1e90ff','#a55eea','#ff6b81','#00d2d3'];
+  const COLORS = ['#ff4757', '#ffa502', '#ffdd59', '#2ed573', '#1e90ff', '#a55eea', '#ff6b81', '#00d2d3'];
   for (let i = 0; i < count; i++) {
     const t = [];
     for (let j = 0; j < 3; j++) t.push({ s: ri(28), c: COLORS[ri(COLORS.length)] });
@@ -320,7 +324,7 @@ function publicProfile(userId) {
     activeTitle: p.activeTitle || 'rookie',
     backgrounds: (p.backgrounds || ['default']).slice(),
     activeBackground: p.activeBackground || 'default',
-    avatars: (p.avatars || [0,1]).slice(),
+    avatars: (p.avatars || [0, 1]).slice(),
     activeAvatar: typeof p.activeAvatar === 'number' ? p.activeAvatar : 0,
     referralCount: p.referralCount || 0,
     referredBy: p.referredBy || null,
@@ -584,7 +588,7 @@ function getTournamentIdForDate(d) {
   const day = d.getDay(); // 0 = вс
   const sunday = new Date(d);
   if (day !== 0) sunday.setDate(sunday.getDate() + (7 - day));
-  return 'tour_' + sunday.getFullYear() + '_' + String(sunday.getMonth()+1).padStart(2,'0') + '_' + String(sunday.getDate()).padStart(2,'0');
+  return 'tour_' + sunday.getFullYear() + '_' + String(sunday.getMonth() + 1).padStart(2, '0') + '_' + String(sunday.getDate()).padStart(2, '0');
 }
 
 function getTournamentSunday() {
@@ -682,11 +686,11 @@ function buildBracket(playersList) {
   const matches = [];
   for (let i = 0; i < N; i += 2) {
     const p1 = slots[i] ? slots[i].userId : null;
-    const p2 = slots[i+1] ? slots[i+1].userId : null;
+    const p2 = slots[i + 1] ? slots[i + 1].userId : null;
     const status = (p1 && p2) ? 'waiting' : 'done';
     const winner = p1 && !p2 ? p1 : (!p1 && p2 ? p2 : null);
     matches.push({
-      id: 'r1_m' + (i/2 + 1),
+      id: 'r1_m' + (i / 2 + 1),
       p1, p2, winner, status,
       roomId: null,
       startedAt: status === 'done' ? Date.now() : null,
@@ -722,13 +726,13 @@ function buildNextRound(roundIndex) {
   if (!prev) return null;
   const matches = [];
   for (let i = 0; i < prev.length; i += 2) {
-    const m1 = prev[i], m2 = prev[i+1];
+    const m1 = prev[i], m2 = prev[i + 1];
     const p1 = m1.winner || null;
     const p2 = m2.winner || null;
     const status = (p1 && p2) ? 'waiting' : 'done';
     const winner = p1 && !p2 ? p1 : (!p1 && p2 ? p2 : null);
     matches.push({
-      id: 'r' + roundIndex + '_m' + (i/2 + 1),
+      id: 'r' + roundIndex + '_m' + (i / 2 + 1),
       p1, p2, winner, status,
       roomId: null,
       startedAt: status === 'done' ? Date.now() : null,
