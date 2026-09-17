@@ -4640,7 +4640,8 @@ line-height: 1;
         +='<div class="tourPlayer' + (isMe ? ' me' : '' ) + '">' ; html +='<span class="slotNum">' + (i + 1) + '.</span>'
         ; html +='<span class="playerName">' + escapeHtml(p.name) + '</span>' ; html +='</div>' ; } else { html
         +='<div class="tourPlayer empty">' ; html +='<span class="slotNum">' + (i + 1) + '.</span>' ; html
-        +='<span class="playerName">свободно</span>' ; html +='</div>' ; } } html +='</div>' ; // Сетка if (t.bracket) {
+        +='<span class="playerName">свободно</span>' ; html +='</div>' ; } } html +='</div>'; // Сетка
+        if (t.bracket) {
         html +='<div class="sectionTitle" style="margin-top:12px;">Сетка</div>' ; html +='<div class="bracket">' ; const
         roundDefs=[ { key: 'round1' , label: '1/4 финала' }, { key: 'round2' , label: '1/2 финала' }, { key: 'round3' ,
         label: 'Финал' } ]; for (const r of roundDefs) { const matches=t.bracket[r.key]; if (!matches ||
