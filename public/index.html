@@ -1772,7 +1772,271 @@ transition: background 0.15s, transform 0.1s;
         opacity: 0.6;
       }
     }
-
+        /* АНИМАЦИИ АВАТАРОК */
+        .avatarCircle { transition: transform 0.2s, box-shadow 0.2s; }
+        .avatarCircle.anim-pulse { animation: avPulse 1.4s ease-in-out infinite; }
+        .avatarCircle.anim-spin { animation: avSpin 5s linear infinite; }
+        .avatarCircle.anim-wiggle { animation: avWiggle 1.6s ease-in-out infinite; }
+        .avatarCircle.anim-blink { animation: avBlink 1.8s ease-in-out infinite; }
+        .avatarCircle.anim-bounce { animation: avBounce 1.2s ease-in-out infinite; }
+        .avatarCircle.anim-shake { animation: avShake 0.8s ease-in-out infinite; }
+        .avatarCircle.anim-float { animation: avFloat 2.5s ease-in-out infinite; }
+        .avatarCircle.anim-glow { animation: avGlow 2s ease-in-out infinite; }
+            /* СЛОЖНЫЕ АНИМАЦИИ — ЧЕМПИОНСКИЕ */
+            .avatarCircle.anim-dragon {
+            position: relative; overflow: visible;
+            animation: dragonBreathe 2.4s ease-in-out infinite;
+            }
+            .avatarCircle.anim-dragon::after {
+            content: '\1F525';
+            position: absolute; font-size: 14px; right: -8px; bottom: -2px;
+            animation: dragonFire 1.6s ease-out infinite;
+            pointer-events: none;
+            }
+            @keyframes dragonBreathe {
+            0%,100% { transform: scale(1) rotate(-3deg); filter: drop-shadow(0 0 8px #ff4500); }
+            50% { transform: scale(1.18) rotate(3deg); filter: drop-shadow(0 0 18px #ff8b1a); }
+            }
+            @keyframes dragonFire {
+            0% { transform: translate(0,0) scale(0.4); opacity: 1; }
+            60% { transform: translate(10px,-6px) scale(1.2); opacity: 0.9; }
+            100% { transform: translate(20px,-14px) scale(0.2); opacity: 0; }
+            }
+            
+            .avatarCircle.anim-lion {
+            position: relative; overflow: visible;
+            animation: lionRoar 2s ease-in-out infinite;
+            }
+            .avatarCircle.anim-lion::before {
+            content: '';
+            position: absolute; inset: -6px; border-radius: 50%;
+            border: 2px solid rgba(255,215,0,0.9);
+            animation: lionRing 2s ease-out infinite;
+            pointer-events: none;
+            }
+            @keyframes lionRoar {
+            0%,100% { transform: scale(1); filter: drop-shadow(0 0 10px #ff8b1a) brightness(1); }
+            50% { transform: scale(1.15); filter: drop-shadow(0 0 22px #ffd93b) brightness(1.3); }
+            }
+            @keyframes lionRing {
+            0% { transform: scale(0.7); opacity: 1; border-color: rgba(255,215,0,1); }
+            100% { transform: scale(1.6); opacity: 0; border-color: rgba(255,80,0,0); }
+            }
+            
+            .avatarCircle.anim-phoenix {
+            position: relative; overflow: visible;
+            animation: phoenixFly 2s ease-in-out infinite;
+            }
+            .avatarCircle.anim-phoenix::after {
+            content: '\2728';
+            position: absolute; font-size: 10px; left: 50%; bottom: -4px;
+            transform: translateX(-50%);
+            animation: phoenixTrail 1.8s ease-out infinite;
+            pointer-events: none;
+            }
+            @keyframes phoenixFly {
+            0%,100% { transform: translateY(0) rotate(-4deg); filter: drop-shadow(0 0 10px #ff8b1a); }
+            50% { transform: translateY(-6px) rotate(4deg); filter: drop-shadow(0 0 20px #ffd93b); }
+            }
+            @keyframes phoenixTrail {
+            0% { transform: translate(-50%, 0) scale(0.6); opacity: 1; }
+            100% { transform: translate(-50%, 18px) scale(1.4); opacity: 0; }
+            }
+            
+            .avatarCircle.anim-unicorn2 {
+            position: relative; overflow: visible;
+            animation: unicornRainbow 3s ease-in-out infinite;
+            filter: drop-shadow(0 0 12px #ff6b81);
+            }
+            .avatarCircle.anim-unicorn2::before {
+            content: '\2B50';
+            position: absolute; font-size: 10px; top: -4px; right: -4px;
+            animation: unicornStar 2s ease-in-out infinite;
+            pointer-events: none;
+            }
+            @keyframes unicornRainbow {
+            0% { filter: drop-shadow(0 0 12px #ff6b81); transform: rotate(-3deg); }
+            25% { filter: drop-shadow(0 0 12px #ffdd59); transform: rotate(0deg); }
+            50% { filter: drop-shadow(0 0 12px #2ed573); transform: rotate(3deg); }
+            75% { filter: drop-shadow(0 0 12px #1e90ff); transform: rotate(0deg); }
+            100% { filter: drop-shadow(0 0 12px #a55eea); transform: rotate(-3deg); }
+            }
+            @keyframes unicornStar {
+            0%,100% { transform: rotate(0) scale(1); opacity: 1; }
+            50% { transform: rotate(180deg) scale(1.4); opacity: 0.7; }
+            }
+            
+            .avatarCircle.anim-wolf {
+            position: relative; overflow: visible;
+            animation: wolfHowl 3s ease-in-out infinite;
+            }
+            .avatarCircle.anim-wolf::after {
+            content: '\1F319';
+            position: absolute; font-size: 12px; top: -8px; right: -8px;
+            animation: wolfMoon 3s ease-in-out infinite;
+            pointer-events: none;
+            }
+            @keyframes wolfHowl {
+            0%,100% { transform: scale(1) rotate(0); filter: brightness(1); }
+            25% { transform: scale(1.1) rotate(-3deg); filter: brightness(1.4) drop-shadow(0 0 14px #1e90ff); }
+            75% { transform: scale(1.1) rotate(3deg); filter: brightness(1.4) drop-shadow(0 0 14px #a55eea); }
+            }
+            @keyframes wolfMoon {
+            0%,100% { transform: translateY(0) rotate(0); opacity: 1; }
+            50% { transform: translateY(-4px) rotate(-15deg); opacity: 0.7; }
+            }
+            
+            /* СЛОЖНЫЕ АНИМАЦИИ — ЗА 1000 МОНЕТ */
+            .avatarCircle.anim-volcano {
+            position: relative; overflow: visible;
+            animation: volcanoShake 1.8s ease-in-out infinite;
+            }
+            .avatarCircle.anim-volcano::before {
+            content: '';
+            position: absolute; inset: -4px; border-radius: 50%;
+            background: radial-gradient(circle at 50% 80%, rgba(255,80,0,0.8), transparent 60%);
+            animation: volcanoGlow 1.4s ease-in-out infinite;
+            pointer-events: none;
+            }
+            .avatarCircle.anim-volcano::after {
+            content: '\1F525';
+            position: absolute; font-size: 12px; top: -10px; left: 50%;
+            transform: translateX(-50%);
+            animation: volcanoErupt 2s ease-out infinite;
+            pointer-events: none;
+            }
+            @keyframes volcanoShake {
+            0%,100% { transform: translateX(0); }
+            20% { transform: translateX(-2px); }
+            40% { transform: translateX(2px); }
+            60% { transform: translateX(-2px); }
+            80% { transform: translateX(2px); }
+            }
+            @keyframes volcanoGlow {
+            0%,100% { opacity: 0.4; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.3); }
+            }
+            @keyframes volcanoErupt {
+            0% { transform: translate(-50%, 6px) scale(0.5); opacity: 1; }
+            100% { transform: translate(-50%, -18px) scale(1.3); opacity: 0; }
+            }
+            
+            .avatarCircle.anim-storm {
+            position: relative; overflow: visible;
+            animation: stormFlash 2s ease-in-out infinite;
+            }
+            .avatarCircle.anim-storm::after {
+            content: '\26A1';
+            position: absolute; font-size: 14px; left: 50%; top: 50%;
+            transform: translate(-50%, -50%);
+            animation: stormBolt 2s ease-in-out infinite;
+            pointer-events: none;
+            color: #ffe600;
+            }
+            @keyframes stormFlash {
+            0%, 90%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+            92% { filter: brightness(3) drop-shadow(0 0 20px #ffe600); }
+            94% { filter: brightness(1); }
+            96% { filter: brightness(2.5) drop-shadow(0 0 16px #1e90ff); }
+            }
+            @keyframes stormBolt {
+            0%, 90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+            92% { opacity: 1; transform: translate(-50%, -50%) scale(1.6); }
+            96% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.2); }
+            }
+            
+            .avatarCircle.anim-tsunami {
+            position: relative; overflow: visible;
+            animation: tsunamiWave 2.5s ease-in-out infinite;
+            }
+            .avatarCircle.anim-tsunami::before {
+            content: '\1F30A';
+            position: absolute; font-size: 12px; bottom: -6px; left: 50%;
+            transform: translateX(-50%);
+            animation: tsunamiSplash 2s ease-out infinite;
+            pointer-events: none;
+            }
+            @keyframes tsunamiWave {
+            0%,100% { transform: translateY(0) scaleX(1); filter: drop-shadow(0 0 10px #1e90ff); }
+            50% { transform: translateY(-3px) scaleX(1.08); filter: drop-shadow(0 0 18px #00d2d3); }
+            }
+            @keyframes tsunamiSplash {
+            0% { transform: translate(-50%, 0) scale(0.6); opacity: 1; }
+            100% { transform: translate(-50%, -14px) scale(1.4); opacity: 0; }
+            }
+            
+            .avatarCircle.anim-inferno {
+            position: relative; overflow: visible;
+            animation: infernoBurn 1.5s ease-in-out infinite;
+            }
+            .avatarCircle.anim-inferno::before,
+            .avatarCircle.anim-inferno::after {
+            content: '\1F525';
+            position: absolute; font-size: 12px;
+            pointer-events: none;
+            }
+            .avatarCircle.anim-inferno::before {
+            top: -8px; left: -6px;
+            animation: infernoFlame1 1.4s ease-out infinite;
+            }
+            .avatarCircle.anim-inferno::after {
+            top: -6px; right: -6px;
+            animation: infernoFlame2 1.6s ease-out infinite;
+            }
+            @keyframes infernoBurn {
+            0%,100% { transform: scale(1); filter: drop-shadow(0 0 12px #ff4500); }
+            50% { transform: scale(1.12); filter: drop-shadow(0 0 24px #ffd93b) hue-rotate(-10deg); }
+            }
+            @keyframes infernoFlame1 {
+            0% { transform: translate(0,0) scale(0.5) rotate(-10deg); opacity: 1; }
+            100% { transform: translate(-10px,-16px) scale(1.2) rotate(-40deg); opacity: 0; }
+            }
+            @keyframes infernoFlame2 {
+            0% { transform: translate(0,0) scale(0.5) rotate(10deg); opacity: 1; }
+            100% { transform: translate(10px,-14px) scale(1.2) rotate(40deg); opacity: 0; }
+            }
+            
+            .avatarCircle.anim-tornado {
+            position: relative; overflow: visible;
+            animation: tornadoSpin 2s linear infinite;
+            }
+            .avatarCircle.anim-tornado::before {
+            content: '\1F4A8';
+            position: absolute; font-size: 14px; right: -10px; top: 50%;
+            transform: translateY(-50%);
+            animation: tornadoDust 1.5s ease-out infinite;
+            pointer-events: none;
+            }
+            @keyframes tornadoSpin {
+            0% { transform: rotate(0) scale(1); filter: drop-shadow(0 0 8px #a0a0a0); }
+            50% { transform: rotate(180deg) scale(0.9); filter: drop-shadow(0 0 14px #c0c0c0); }
+            100% { transform: rotate(360deg) scale(1); filter: drop-shadow(0 0 8px #a0a0a0); }
+            }
+            @keyframes tornadoDust {
+            0% { transform: translate(0,-50%) scale(0.5); opacity: 1; }
+            100% { transform: translate(-20px,-50%) scale(1.2); opacity: 0; }
+            }
+        @keyframes avPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+        @keyframes avSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+        @keyframes avWiggle { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+        @keyframes avBlink { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
+        @keyframes avBounce {
+        0%,100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+        }
+        @keyframes avShake {
+        0%,100% { transform: translateX(0); }
+        25% { transform: translateX(-4px); }
+        75% { transform: translateX(4px); }
+        }
+        @keyframes avFloat {
+        0%,100% { transform: translateY(0); }
+        50% { transform: translateY(-4px) scale(1.05); }
+        }
+        @keyframes avGlow {
+        0%,100% { filter: brightness(1); box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+        50% { filter: brightness(1.4); box-shadow: 0 0 24px rgba(165,94,234,0.9); }
+        }
     @media (prefers-reduced-motion: reduce) {
 
       body.animated-bg::before,
@@ -2208,6 +2472,22 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   <script>
     (function () {
   'use strict';
+    const EMOJI_SETS = {
+    classic: { name: 'Classic', cost: 0,
+    emojis: ['\uD83D\uDE02', '\uD83D\uDC4D', '\uD83D\uDE31', '\uD83D\uDD25', '\uD83D\uDE21', '\uD83D\uDC4B'] },
+    cute: { name: 'Cute', cost: 50,
+    emojis: ['\uD83E\uDD70', '\uD83D\uDE0D', '\uD83E\uDD17', '\uD83D\uDE18', '\uD83D\uDE0A', '\uD83E\uDD7A'] },
+    rage: { name: 'Rage', cost: 100,
+    emojis: ['\uD83E\uDD2C', '\uD83D\uDE24', '\uD83D\uDE20', '\uD83D\uDC7F', '\uD83D\uDCA2', '\uD83E\uDD2F'] },
+    cool: { name: 'Cool', cost: 150,
+    emojis: ['\uD83D\uDE0E', '\uD83E\uDD19', '\u270C\uFE0F', '\uD83D\uDC4C', '\uD83C\uDD92', '\uD83D\uDCAA'] },
+    party: { name: 'Party', cost: 200,
+    emojis: ['\uD83C\uDF89', '\uD83C\uDF8A', '\uD83D\uDCAF', '\u26A1', '\uD83D\uDCA5', '\uD83C\uDF1F'] },
+    food: { name: 'Food', cost: 100,
+    emojis: ['\uD83C\uDF55', '\uD83C\uDF54', '\uD83C\uDF5F', '\uD83C\uDF69', '\uD83C\uDF66', '\uD83C\uDF7F'] },
+    love: { name: 'Love', cost: 150,
+    emojis: ['\u2764\uFE0F', '\uD83D\uDC96', '\uD83D\uDC98', '\uD83D\uDC9D', '\uD83D\uDC95', '\uD83D\uDE3B'] }
+    };
     // ============ I18N ============
     const I18N = {
     ru: {
@@ -3147,18 +3427,36 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   for (const s of SKINS_LIST) SKINS[s.id] = s;
 
   const AVATARS = [
-    { id: 0, emoji: '😀', cost: 0, name: 'Улыбка' },
-    { id: 1, emoji: '😎', cost: 0, name: 'Крутой' },
-    { id: 2, emoji: '🤖', cost: 0, name: 'Робот', anim: 'pulse' },
-    { id: 3, emoji: '🦊', cost: 0, name: 'Лис' },
-    { id: 4, emoji: '🐼', cost: 0, name: 'Панда' },
-    { id: 5, emoji: '🐸', cost: 0, name: 'Жаба', anim: 'wiggle' },
-    { id: 6, emoji: '🐯', cost: 200, name: 'Тигр' },
-    { id: 7, emoji: '🦁', cost: 200, name: 'Лев' },
-    { id: 8, emoji: '🐲', cost: 200, name: 'Дракон', anim: 'wiggle' },
-    { id: 9, emoji: '🦄', cost: 200, name: 'Единорог', anim: 'pulse' },
-    { id: 10, emoji: '👑', cost: 200, name: 'Корона', anim: 'blink' },
-    { id: 11, emoji: '💎', cost: 200, name: 'Алмаз', anim: 'blink' }
+  { id: 0, emoji: '\uD83D\uDE00', cost: 0, name: 'Smile' },
+  { id: 1, emoji: '\uD83D\uDE0E', cost: 0, name: 'Cool' },
+  { id: 2, emoji: '\uD83E\uDD16', cost: 0, name: 'Robot', anim: 'pulse' },
+  { id: 3, emoji: '\uD83E\uDD8A', cost: 0, name: 'Fox' },
+  { id: 4, emoji: '\uD83D\uDC3C', cost: 0, name: 'Panda' },
+  { id: 5, emoji: '\uD83D\uDC38', cost: 0, name: 'Frog', anim: 'bounce' },
+  { id: 6, emoji: '\uD83D\uDC2F', cost: 200, name: 'Tiger' },
+  { id: 7, emoji: '\uD83E\uDD81', cost: 200, name: 'Lion' },
+  { id: 8, emoji: '\uD83D\uDC32', cost: 200, name: 'Dragon', anim: 'wiggle' },
+  { id: 9, emoji: '\uD83E\uDD84', cost: 200, name: 'Unicorn', anim: 'float' },
+  { id: 10, emoji: '\uD83D\uDC51', cost: 200, name: 'Crown', anim: 'glow' },
+  { id: 11, emoji: '\uD83D\uDC8E', cost: 200, name: 'Diamond', anim: 'blink' },
+  { id: 12, emoji: '\uD83D\uDD25', cost: 300, name: 'Fire', anim: 'shake' },
+  { id: 13, emoji: '\u26A1', cost: 300, name: 'Bolt', anim: 'glow' },
+  { id: 14, emoji: '\uD83C\uDF08', cost: 300, name: 'Rainbow', anim: 'spin' },
+  { id: 15, emoji: '\u2B50', cost: 300, name: 'Star', anim: 'blink' },
+  { id: 16, emoji: '\uD83C\uDF83', cost: 400, name: 'Pumpkin', anim: 'bounce' },
+  { id: 17, emoji: '\uD83D\uDC7B', cost: 400, name: 'Ghost', anim: 'float' },
+  { id: 18, emoji: '\uD83C\uDF84', cost: 400, name: 'Tree', anim: 'wiggle' },
+  { id: 19, emoji: '\uD83C\uDF81', cost: 400, name: 'Gift', anim: 'shake' },
+  { id: 20, emoji: '\uD83D\uDC09', cost: 0, name: 'Champion Dragon', anim: 'dragon', champion: true },
+  { id: 21, emoji: '\uD83E\uDD81', cost: 0, name: 'Champion Lion', anim: 'lion', champion: true },
+  { id: 22, emoji: '\uD83E\uDD85', cost: 0, name: 'Champion Phoenix', anim: 'phoenix', champion: true },
+  { id: 23, emoji: '\uD83E\uDD84', cost: 0, name: 'Champion Unicorn', anim: 'unicorn2', champion: true },
+  { id: 24, emoji: '\uD83D\uDC3A', cost: 0, name: 'Champion Wolf', anim: 'wolf', champion: true },
+  { id: 25, emoji: '\uD83C\uDF0B', cost: 1000, name: 'Volcano', anim: 'volcano' },
+  { id: 26, emoji: '\u26C8\uFE0F', cost: 1000, name: 'Storm', anim: 'storm' },
+  { id: 27, emoji: '\uD83C\uDF0A', cost: 1000, name: 'Tsunami', anim: 'tsunami' },
+  { id: 28, emoji: '\uD83D\uDD25', cost: 1000, name: 'Inferno', anim: 'inferno' },
+  { id: 29, emoji: '\uD83C\uDF2A\uFE0F', cost: 1000, name: 'Tornado', anim: 'tornado' }
   ];
 
   const BACKGROUNDS = [
@@ -3357,17 +3655,22 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     renderMenuAvatarAndTitle();
   }
   function renderMenuAvatarAndTitle() {
-    if (!state.profile) return;
-    const av = $('myAvatar');
-    av.textContent = getAvatarEmoji(state.profile.activeAvatar || 0);
-    av.classList.remove('anim-pulse', 'anim-spin', 'anim-wiggle', 'anim-blink');
-    const avDef = AVATARS.find(function(a) { return a.id === (state.profile.activeAvatar || 0); });
-    if (avDef && avDef.anim) av.classList.add('anim-' + avDef.anim);
-    const t = $('myTitle');
-    if (state.profile.activeTitle && state.profile.activeTitle !== 'rookie') {
-      t.textContent = getTitleName(state.profile.activeTitle);
-      t.style.display = '';
-    } else t.style.display = 'none';
+  if (!state.profile) return;
+  const av = $('myAvatar');
+  av.textContent = getAvatarEmoji(state.profile.activeAvatar || 0);
+    av.classList.remove(
+    'anim-pulse', 'anim-spin', 'anim-wiggle', 'anim-blink',
+    'anim-bounce', 'anim-shake', 'anim-float', 'anim-glow',
+    'anim-dragon', 'anim-lion', 'anim-phoenix', 'anim-unicorn2', 'anim-wolf',
+    'anim-volcano', 'anim-storm', 'anim-tsunami', 'anim-inferno', 'anim-tornado'
+    );
+  const avDef = AVATARS.find(function(a) { return a.id === (state.profile.activeAvatar || 0); });
+  if (avDef && avDef.anim) av.classList.add('anim-' + avDef.anim);
+  const t = $('myTitle');
+  if (state.profile.activeTitle && state.profile.activeTitle !== 'rookie') {
+  t.textContent = getTitleName(state.profile.activeTitle);
+  t.style.display = '';
+  } else t.style.display = 'none';
   }
 
   function clearBgParticles() {
@@ -3907,6 +4210,7 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     '<button class="shopTab' + (tab === 'avatars' ? ' active' : '') + '" data-tab="avatars">' + t('shopTabAvatars') + '</button>';
     html +=
     '<button class="shopTab' + (tab === 'titles' ? ' active' : '') + '" data-tab="titles">' + t('shopTabTitles') + '</button>';
+      html += '<button class="shopTab' + (tab === 'emoji' ? ' active' : '') + '" data-tab="emoji">Смайлы<button>';
     html += '</div>';
   html += '<div style="max-height:50vh;overflow-y:auto;">';
   
@@ -3970,12 +4274,13 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     } else if (tab === 'avatars') {
     html += '<div class="avatarGrid">';
       for (let ai = 0; ai < AVATARS.length; ai++) { const a=AVATARS[ai]; const isOwned=ownedAv.indexOf(a.id) !==-1; const
-        isActive=activeAv===a.id; const canAfford=coins>= a.cost;
+        isActive=activeAv===a.id; const isChamp=!!a.champion; const canAfford=coins>= a.cost;
         let cellCls = 'avatarCell';
         if (isActive) cellCls += ' active';
         else if (isOwned) cellCls += ' owned';
+        else if (isChamp) cellCls += ' locked';
         else if (!canAfford) cellCls += ' locked';
-        const avAction = isActive ? 'active' : (isOwned ? 'equip' : 'buy');
+        const avAction = isActive ? 'active' : (isChamp ? 'champion' : (isOwned ? 'equip' : 'buy'));
         html += '<div class="' + cellCls + '" data-av="' + a.id + '" data-action="' + avAction + '">';
           html += '<div class="avatarCellInner">';
             html += '<div style="font-size:24px;">' + a.emoji + '</div>';
@@ -3983,14 +4288,43 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
             html += '<div style="font-size:9px;color:#2ed573;">&#10003;</div>';
             }
             if (!isOwned) {
-            const priceText = a.cost === 0 ? t('shopFree') : ('&#129689; ' + a.cost);
+            let priceText;
+            if (isChamp) priceText = '\uD83C\uDFC6';
+            else if (a.cost === 0) priceText = t('shopFree');
+            else priceText = '\uD83E\uDE99 ' + a.cost;
             html += '<div class="cellPrice">' + priceText + '</div>';
             }
             html += '</div>';
           html += '</div>';
         }
         html += '</div>';
-    } else if (tab === 'titles') {
+        } else if (tab === 'emoji') {
+        const ownedSets = Array.isArray(p.emojiSets) ? p.emojiSets : ['classic'];
+        const activeSet = p.activeEmojiSet || 'classic';
+        html += '<div class="shopGrid">';
+          for (const setId in EMOJI_SETS) {
+          const es = EMOJI_SETS[setId];
+          const isOwned = ownedSets.indexOf(setId) !== -1;
+          const isActive = activeSet === setId;
+          const canAfford = coins >= es.cost;
+          let label, cls, attr;
+          if (isActive) { label = 'Active'; cls = 'active-btn'; attr = 'disabled'; }
+          else if (isOwned) { label = 'Set'; cls = 'equip'; attr = ''; }
+          else if (canAfford) { label = 'Buy'; cls = 'buy'; attr = ''; }
+          else { label = 'No coins'; cls = 'disabled'; attr = 'disabled'; }
+          const cardCls = 'shopCard' + (isOwned ? ' owned' : '') + (isActive ? ' active' : '');
+          const act = isActive ? 'active' : (isOwned ? 'equip' : 'buy');
+          html += '<div class="' + cardCls + '">';
+            html += '<div style="font-size:22px;letter-spacing:1px;text-align:center;">' + es.emojis.join('') + '</div>';
+            html += '<div class="skinName">' + es.name + '</div>';
+            const priceText = es.cost === 0 ? 'Free' : '\uD83E\uDE99 ' + es.cost;
+            html += '<div class="skinPrice">' + priceText + '</div>';
+            html +=
+            '<button class="skinAction ' + cls + '" data-set="' + setId + '" data-action="' + act + '" ' + attr + '>' + label + '</button>';
+            html += '</div>';
+            }
+            html += '</div>';
+            } else if (tab === 'titles') {
     for (let ti = 0; ti < TITLES.length; ti++) { const tt=TITLES[ti]; const isOwned=ownedTitles.indexOf(tt.id) !==-1; const
       isActive=activeTitle===tt.id; let rowCls='achRow' + (isOwned ? ' unlocked' : '' ); html +='<div class="' + rowCls
       + '">' ; html +='<div class="achBody">' ; html +='<div class="achName">' + tt.name + '</div>' ; html +='</div>' ; if
@@ -4025,11 +4359,29 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     ) equipSkin(id); }; }); document.querySelectorAll('.skinAction[data-bg]').forEach(function(btn) {
     btn.onclick=function() { if (btn.disabled) return; const id=btn.dataset.bg; if (btn.dataset.action==='buy' )
     buyBackground(id); else if (btn.dataset.action==='equip' ) equipBackground(id); }; });
-    document.querySelectorAll('.avatarCell').forEach(function(cell) { cell.onclick=function() { const
-    action=cell.dataset.action; if (action==='active' ) return; const id=parseInt(cell.dataset.av, 10); if (action==='buy'
-    ) buyAvatar(id); else if (action==='equip' ) equipAvatar(id); }; });
+      document.querySelectorAll('.avatarCell').forEach(function(cell) {
+        cell.onclick = function() {
+          const action = cell.dataset.action;
+          if (action === 'active') return;
+          if (action === 'champion') {
+            showToast('\uD83C\uDFC6 Только за победу в турнире');
+            return;
+          }
+          const id = parseInt(cell.dataset.av, 10);
+          if (action === 'buy') buyAvatar(id);
+          else if (action === 'equip') equipAvatar(id);
+        };
+      });
     document.querySelectorAll('[data-title][data-action="equip" ]').forEach(function(btn) { btn.onclick=function() {
-    equipTitle(btn.dataset.title); }; }); }, 30); }
+    equipTitle(btn.dataset.title); }; });
+          document.querySelectorAll('[data-set]').forEach(function(btn) {
+        btn.onclick = function() {
+          if (btn.disabled) return;
+          const setId = btn.dataset.set;
+          if (btn.dataset.action === 'buy') buyEmojiSet(setId);
+          else if (btn.dataset.action === 'equip') equipEmojiSet(setId);
+        };
+      }); }, 30); }
 
   function buySkin(skinId) {
     if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
@@ -4119,7 +4471,33 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       }
     });
   }
+    function buyEmojiSet(setId) {
+    if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
+    state.socket.emit('buyEmojiSet', { userId: state.userId, setId: setId }, function(res) {
+      if (res && res.error) {
+        const msgs = { not_enough_coins: 'Недостаточно монет', already_owned: 'Уже куплено' };
+        showToast(msgs[res.error] || 'Ошибка');
+        return;
+      }
+      if (res && res.profile) {
+        state.profile = res.profile;
+        saveLocalMeta(); renderMenuRank();
+        Audio.click();
+        showShopOverlay('emoji');
+      }
+    });
+  }
 
+  function equipEmojiSet(setId) {
+    if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
+    state.socket.emit('setActiveEmojiSet', { userId: state.userId, setId: setId }, function(res) {
+      if (res && res.profile) {
+        state.profile = res.profile;
+        saveLocalMeta(); renderMenuRank();
+        showShopOverlay('emoji');
+      }
+    });
+  }
   function showAchievementsOverlay() {
     showOverlay('🏅 ДОСТИЖЕНИЯ', '', [
       { text: 'Закрыть', action: hideOverlay, secondary: true }
@@ -5192,7 +5570,10 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   
   panel.innerHTML = '';
   const now = Date.now();
-  const onCooldown = (now - (state.lastEmoteAt || 0)) < 3000; for (const emoji of ['😂','👍','😱','🔥','😡','👋']) { const
+  const onCooldown = (now - (state.lastEmoteAt || 0)) < 3000;     const activeSetId = (state.profile && state.profile.activeEmojiSet) || 'classic';
+    const activeSet = EMOJI_SETS[activeSetId] || EMOJI_SETS.classic;
+    const emojisList = activeSet.emojis;
+    for (const emoji of emojisList) { const
     btn=document.createElement('button'); btn.type='button' ; btn.textContent=emoji; btn.disabled=onCooldown; // ВАЖНО: и pointerdown, и click — чтобы работало на всех девайсах
      const fire=function(e) { e.preventDefault();
     e.stopPropagation(); if (Date.now() - (state.lastEmoteAt || 0) < 3000) return; state.lastEmoteAt=Date.now(); if
