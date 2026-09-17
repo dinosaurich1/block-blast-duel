@@ -1,13 +1,17 @@
 {
   "name": "block-blast-duel",
-  "version": "1.0.0",
-  "description": "Online 1v1 Block Blast",
+  "version": "5.1.0",
+  "description": "Online Block Blast 1v1 + solo with rating",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "@upstash/redis": "^1.34.0"
   }
 }
