@@ -24,14 +24,20 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN
 });
 const PLAYERS_KEY = 'bbd:players';
+const TOURNAMENT_KEY = 'bbd:tournament';
 let players = {};
 let playersLoaded = false;
+let tournament = null;
 
 const playersReady = (async () => {
   try {
-    const data = await redis.get(PLAYERS_KEY);
-    let parsed = data;
-    if (typeof data === 'string') { try { parsed = JSON.parse(data); } catch (e) { parsed = null; } }
+    const [playersData, tourData] = await Promise.all([
+      redis.get(PLAYERS_KEY),
+      redis.get(TOURNAMENT_KEY)
+    ]);
+    // Игроки
+    let parsed = playersData;
+    if (typeof playersData === 'string') { try { parsed = JSON.parse(playersData); } catch (e) { parsed = null; } }
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       players = parsed;
       for (const uid of Object.keys(players)) {
@@ -40,6 +46,13 @@ const playersReady = (async () => {
         migrateProfile(p, uid);
       }
       console.log('Loaded ' + Object.keys(players).length + ' profiles');
+    }
+    // Турнир
+    let tourParsed = tourData;
+    if (typeof tourData === 'string') { try { tourParsed = JSON.parse(tourData); } catch (e) { tourParsed = null; } }
+    if (tourParsed && typeof tourParsed === 'object') {
+      tournament = tourParsed;
+      console.log('Loaded tournament: ' + tournament.id + ' (' + tournament.state + ')');
     }
     playersLoaded = true;
   } catch (e) {
@@ -77,6 +90,9 @@ function migrateProfile(p, uid) {
   if (typeof p.referralRewarded !== 'boolean') p.referralRewarded = false;
   if (typeof p.referralCount !== 'number') p.referralCount = 0;
   if (!Array.isArray(p.referrals)) p.referrals = [];
+  if (typeof p.puzzleBest !== 'number') p.puzzleBest = 0;
+  if (typeof p.puzzleLastDate !== 'string') p.puzzleLastDate = null;
+  if (!Array.isArray(p.tournamentWins)) p.tournamentWins = [];
   if (typeof p.name !== 'string' || !p.name.trim()) p.name = 'Игрок-' + String(uid || '').slice(-4).toUpperCase();
 }
 
@@ -91,11 +107,22 @@ function savePlayers() {
   }, 800);
 }
 
+let tourSaveTimer = null;
+function saveTournament() {
+  if (!playersLoaded) return;
+  if (tourSaveTimer) clearTimeout(tourSaveTimer);
+  tourSaveTimer = setTimeout(async () => {
+    tourSaveTimer = null;
+    try {
+      if (tournament) await redis.set(TOURNAMENT_KEY, JSON.stringify(tournament));
+      else await redis.del(TOURNAMENT_KEY);
+    } catch (e) { console.error('Tournament save failed:', e.message); }
+  }, 800);
+}
+
 // ============ SEASONS ============
 function getOrthodoxEaster(year) {
-  const a = year % 4;
-  const b = year % 7;
-  const c = year % 19;
+  const a = year % 4, b = year % 7, c = year % 19;
   const d = (19 * c + 15) % 30;
   const e = (2 * a + 4 * b - d + 34) % 7;
   const month = Math.floor((d + e + 114) / 31);
@@ -105,36 +132,26 @@ function getOrthodoxEaster(year) {
   return dt;
 }
 function getSeasonalWindows() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const w = [];
+  const now = new Date(), y = now.getFullYear(), w = [];
   for (const yy of [y - 1, y, y + 1]) {
-    w.push({
-      id: 'xmas', start: new Date(yy, 11, 29), end: new Date(yy + 1, 0, 4, 23, 59, 59),
-      skins: ['xmas_tree', 'xmas_snowflake', 'xmas_garland']
-    });
-    w.push({
-      id: 'halloween', start: new Date(yy, 9, 28), end: new Date(yy, 10, 3, 23, 59, 59),
-      skins: ['halloween_skull', 'halloween_bat']
-    });
+    w.push({ id: 'xmas', start: new Date(yy, 11, 29), end: new Date(yy + 1, 0, 4, 23, 59, 59),
+      skins: ['xmas_tree', 'xmas_snowflake', 'xmas_garland'] });
+    w.push({ id: 'halloween', start: new Date(yy, 9, 28), end: new Date(yy, 10, 3, 23, 59, 59),
+      skins: ['halloween_skull', 'halloween_bat'] });
     const easter = getOrthodoxEaster(yy);
-    const eStart = new Date(easter); eStart.setDate(eStart.getDate() - 3); eStart.setHours(0, 0, 0, 0);
-    const eEnd = new Date(easter); eEnd.setDate(eEnd.getDate() + 3); eEnd.setHours(23, 59, 59, 999);
+    const eStart = new Date(easter); eStart.setDate(eStart.getDate() - 3); eStart.setHours(0,0,0,0);
+    const eEnd = new Date(easter); eEnd.setDate(eEnd.getDate() + 3); eEnd.setHours(23,59,59,999);
     w.push({ id: 'easter', start: eStart, end: eEnd, skins: ['easter_egg', 'easter_bunny'] });
   }
   return w;
 }
 function getActiveSeasonal() {
-  const now = new Date();
-  const activeSet = new Set();
+  const now = new Date(), activeSet = new Set();
   let menuTheme = 'default';
   for (const w of getSeasonalWindows()) {
-    if (now >= w.start && now <= w.end) {
-      w.skins.forEach(s => activeSet.add(s));
-      menuTheme = w.id;
-    }
+    if (now >= w.start && now <= w.end) { w.skins.forEach(s => activeSet.add(s)); menuTheme = w.id; }
   }
-  return { skins: Array.from(activeSet), menuTheme: menuTheme };
+  return { skins: Array.from(activeSet), menuTheme };
 }
 
 // ============ CONSTANTS ============
@@ -149,6 +166,12 @@ const REFERRAL_REWARD = 100;
 const ROOM_EXPIRY = 10 * 60 * 1000;
 const EMOTE_COOLDOWN = 3000;
 const EMOTE_LIST = ['😂', '👍', '😱', '🔥', '😡', '👋'];
+const TOURNAMENT_ENTRY = 100;
+const TOURNAMENT_MIN_PLAYERS = 4;
+const TOURNAMENT_MAX_PLAYERS = 8;
+const TOURNAMENT_PRIZE_1 = 500;
+const TOURNAMENT_PRIZE_2 = 250;
+const TOURNAMENT_PRIZE_3 = 100;
 
 const SKIN_CATALOG = {
   classic: 0, neon: 150, bubble: 300, retro: 500,
@@ -166,11 +189,10 @@ const BACKGROUND_CATALOG = {
   anim_ocean: 500, anim_neon: 800, anim_fire: 600,
   champ_arena: 0, champ_nebula: 0, champ_hall: 0
 };
-const AVATAR_CATALOG = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 200, 7: 200, 8: 200, 9: 200, 10: 200, 11: 200 };
-
-const SEASONAL_SKINS = ['xmas_tree', 'xmas_snowflake', 'xmas_garland', 'halloween_skull', 'halloween_bat', 'easter_egg', 'easter_bunny'];
-const CHAMPION_SKINS = ['champ_lightning', 'champ_crown', 'champ_phoenix', 'champ_amethyst'];
-const CHAMPION_BACKGROUNDS = ['champ_arena', 'champ_nebula', 'champ_hall'];
+const AVATAR_CATALOG = { 0:0,1:0,2:0,3:0,4:0,5:0,6:200,7:200,8:200,9:200,10:200,11:200 };
+const SEASONAL_SKINS = ['xmas_tree','xmas_snowflake','xmas_garland','halloween_skull','halloween_bat','easter_egg','easter_bunny'];
+const CHAMPION_SKINS = ['champ_lightning','champ_crown','champ_phoenix','champ_amethyst'];
+const CHAMPION_BACKGROUNDS = ['champ_arena','champ_nebula','champ_hall'];
 
 const TITLE_DEFS = [
   { id: 'rookie', name: 'Новичок', req: 'auto' },
@@ -183,6 +205,7 @@ const TITLE_DEFS = [
   { id: 'friend', name: 'Друг', req: 'ach:friend' },
   { id: 'duelist', name: 'Дуэлянт', req: 'ach:duel_10' },
   { id: 'gladiator', name: 'Гладиатор', req: 'ach:duel_50' },
+  { id: 'champion', name: 'Чемпион недели', req: 'ach:tournament_1' },
   { id: 'autumn_2025', name: 'Осень 2025', req: 'season' }
 ];
 const ACHIEVEMENT_DEFS = [
@@ -202,7 +225,8 @@ const ACHIEVEMENT_DEFS = [
   { id: 'rich_1000', name: 'Богач', desc: 'Накопить 1000 монет', icon: '💰', coins: 100 },
   { id: 'buy_first_skin', name: 'Модник', desc: 'Купить первый скин', icon: '🎨', coins: 100 },
   { id: 'collector_all', name: 'Коллекционер', desc: 'Собрать все скины', icon: '🏅', coins: 2000 },
-  { id: 'referral_1', name: 'Друг друга', desc: 'Пригласить друга по ссылке', icon: '🤝', coins: 100 }
+  { id: 'referral_1', name: 'Друг друга', desc: 'Пригласить друга', icon: '🤝', coins: 100 },
+  { id: 'tournament_1', name: 'Чемпион', desc: 'Победить в турнире', icon: '🏆', coins: 300 }
 ];
 const QUEST_POOL = [
   { type: 'play_solo', target: 3, reward: 60, text: 'Сыграй 3 соло-игры' },
@@ -236,12 +260,37 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v | 0));
 
 function todayStr() {
   const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ============ PUZZLE OF THE DAY ============
+function hashCode(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return h;
+}
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+function genPuzzleSequence(dateStr, count) {
+  const rand = seededRandom(hashCode('puzzle_' + dateStr));
+  const COLORS = ['#ff4757','#ffa502','#ffdd59','#2ed573','#1e90ff','#a55eea','#ff6b81','#00d2d3'];
+  const seq = [];
+  for (let i = 0; i < count; i++) {
+    const t = [];
+    for (let j = 0; j < 3; j++) t.push({ s: Math.floor(rand() * 28), c: COLORS[Math.floor(rand() * COLORS.length)] });
+    seq.push(t);
+  }
+  return seq;
 }
 
 function genSequence(count) {
   const seq = [];
-  const COLORS = ['#ff4757', '#ffa502', '#ffdd59', '#2ed573', '#1e90ff', '#a55eea', '#ff6b81', '#00d2d3'];
+  const COLORS = ['#ff4757','#ffa502','#ffdd59','#2ed573','#1e90ff','#a55eea','#ff6b81','#00d2d3'];
   for (let i = 0; i < count; i++) {
     const t = [];
     for (let j = 0; j < 3; j++) t.push({ s: ri(28), c: COLORS[ri(COLORS.length)] });
@@ -271,11 +320,14 @@ function publicProfile(userId) {
     activeTitle: p.activeTitle || 'rookie',
     backgrounds: (p.backgrounds || ['default']).slice(),
     activeBackground: p.activeBackground || 'default',
-    avatars: (p.avatars || [0, 1]).slice(),
+    avatars: (p.avatars || [0,1]).slice(),
     activeAvatar: typeof p.activeAvatar === 'number' ? p.activeAvatar : 0,
     referralCount: p.referralCount || 0,
     referredBy: p.referredBy || null,
     referralRewarded: !!p.referralRewarded,
+    puzzleBest: p.puzzleBest || 0,
+    puzzleLastDate: p.puzzleLastDate || null,
+    tournamentWins: (p.tournamentWins || []).slice(),
     duelWins: p.duelWins || 0, duelLosses: p.duelLosses || 0, soloGames: p.soloGames || 0,
     rank: getRank(p.rating),
     seasonal: getActiveSeasonal()
@@ -301,6 +353,7 @@ function ensureProfile(userId) {
       stats: { soloGames: 0, totalLines: 0, maxCombo: 0, duelGames: 0, duelWins: 0 },
       dailyQuests: null,
       referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
+      puzzleBest: 0, puzzleLastDate: null, tournamentWins: [],
       duelWins: 0, duelLosses: 0, soloGames: 0,
       updatedAt: Date.now()
     };
@@ -354,12 +407,9 @@ function checkAchievements(userId, context) {
 }
 
 function applyReferral(newUserId, referrerId) {
-  if (!newUserId || !referrerId) return;
-  if (newUserId === referrerId) return;
-  const newP = players[newUserId];
-  const refP = players[referrerId];
-  if (!newP || !refP) return;
-  if (newP.referredBy) return;
+  if (!newUserId || !referrerId || newUserId === referrerId) return;
+  const newP = players[newUserId], refP = players[referrerId];
+  if (!newP || !refP || newP.referredBy) return;
   newP.referredBy = referrerId;
   newP.updatedAt = Date.now();
   savePlayers();
@@ -381,9 +431,7 @@ function grantReferralIfNeeded(userId) {
   savePlayers();
   unlockAchievement(p.referredBy, 'referral_1');
   const refO = online.get(p.referredBy);
-  if (refO && refO.socket) {
-    refO.socket.emit('referralRewarded', { bonus: REFERRAL_REWARD, fromName: p.name, count: refP.referralCount });
-  }
+  if (refO && refO.socket) refO.socket.emit('referralRewarded', { bonus: REFERRAL_REWARD, fromName: p.name, count: refP.referralCount });
   return { bonus: REFERRAL_REWARD, referrer: p.referredBy };
 }
 
@@ -399,7 +447,7 @@ function getOrCreateDailyQuests(userId) {
     const q = pool.splice(idx, 1)[0];
     quests.push({ id: 'q_' + Date.now() + '_' + i, type: q.type, target: q.target, reward: q.reward, text: q.text, progress: 0, claimed: false });
   }
-  p.dailyQuests = { date: today, quests: quests };
+  p.dailyQuests = { date: today, quests };
   savePlayers();
   return p.dailyQuests;
 }
@@ -455,26 +503,37 @@ setInterval(() => {
   for (const [code, r] of customRooms) if (now - r.createdAt > ROOM_EXPIRY) customRooms.delete(code);
 }, 60000);
 
-function startMatch(hostId, guestId, hostSocket, guestSocket) {
+function startMatch(hostId, guestId, hostSocket, guestSocket, options) {
+  options = options || {};
   const hostO = online.get(hostId);
   const guestO = online.get(guestId);
   if (!hostO || !guestO) return false;
   const roomId = 'room_' + hostId + '_' + Date.now();
   hostSocket.join(roomId); guestSocket.join(roomId);
   hostO.roomId = roomId; hostO.opponentId = guestId; hostO.score = 0;
+  hostO.matchType = options.type || 'duel';
+  hostO.tournamentMatchId = options.tournamentMatchId || null;
   guestO.roomId = roomId; guestO.opponentId = hostId; guestO.score = 0;
-  const sequence = genSequence(300);
+  guestO.matchType = options.type || 'duel';
+  guestO.tournamentMatchId = options.tournamentMatchId || null;
+  const sequence = options.sequence || genSequence(300);
   hostSocket.emit('matchFound', {
     sequence, playerIndex: 0,
     oppName: players[guestId] ? players[guestId].name : 'Соперник',
     oppRating: players[guestId] ? players[guestId].rating : 0,
-    oppAvatar: players[guestId] ? players[guestId].activeAvatar || 0 : 0
+    oppAvatar: players[guestId] ? players[guestId].activeAvatar || 0 : 0,
+    matchType: options.type || 'duel',
+    tournamentMatchId: options.tournamentMatchId || null,
+    tournamentRoundLabel: options.tournamentRoundLabel || null
   });
   guestSocket.emit('matchFound', {
     sequence, playerIndex: 1,
     oppName: players[hostId] ? players[hostId].name : 'Соперник',
     oppRating: players[hostId] ? players[hostId].rating : 0,
-    oppAvatar: players[hostId] ? players[hostId].activeAvatar || 0 : 0
+    oppAvatar: players[hostId] ? players[hostId].activeAvatar || 0 : 0,
+    matchType: options.type || 'duel',
+    tournamentMatchId: options.tournamentMatchId || null,
+    tournamentRoundLabel: options.tournamentRoundLabel || null
   });
   return true;
 }
@@ -519,6 +578,348 @@ function buildLeaderboard(type, userId) {
   return { list: top, myPosition, total: allSorted.length, type };
 }
 
+// ============ TOURNAMENT ============
+function getTournamentIdForDate(d) {
+  // ID по дате воскресенья этой недели
+  const day = d.getDay(); // 0 = вс
+  const sunday = new Date(d);
+  if (day !== 0) sunday.setDate(sunday.getDate() + (7 - day));
+  return 'tour_' + sunday.getFullYear() + '_' + String(sunday.getMonth()+1).padStart(2,'0') + '_' + String(sunday.getDate()).padStart(2,'0');
+}
+
+function getTournamentSunday() {
+  // Возвращает дату ближайшего воскресенья, которое ещё не прошло (по МСК)
+  const now = new Date();
+  const mskNow = new Date(now.getTime() + 3 * 3600 * 1000); // условно МСК как UTC+3
+  const day = mskNow.getUTCDay();
+  let diff = (7 - day) % 7; // сколько дней до воскресенья
+  // Если сегодня вс, но уже после 18:00 МСК — берём следующее
+  if (day === 0) {
+    const h = mskNow.getUTCHours();
+    if (h >= 18) diff = 7;
+  }
+  const sunday = new Date(mskNow);
+  sunday.setUTCDate(sunday.getUTCDate() + diff);
+  sunday.setUTCHours(18, 0, 0, 0); // 18:00 МСК
+  // Конвертируем обратно в UTC
+  return new Date(sunday.getTime() - 3 * 3600 * 1000);
+}
+
+function createNewTournament() {
+  const sunday = getTournamentSunday();
+  const id = getTournamentIdForDate(sunday);
+  return {
+    id,
+    state: 'registration',
+    startTime: sunday.getTime(),
+    players: [],
+    bracket: null,
+    createdAt: Date.now(),
+    finishedAt: null,
+    winner: null,
+    second: null,
+    semifinalists: []
+  };
+}
+
+function ensureTournament() {
+  const now = Date.now();
+  const expectedId = getTournamentIdForDate(getTournamentSunday());
+  // Если турнира нет — создаём
+  if (!tournament) {
+    tournament = createNewTournament();
+    saveTournament();
+    return;
+  }
+  // Если турнир устаревший (прошло >1 дня после старта и он finished/cancelled) — сбрасываем
+  if (tournament.id !== expectedId) {
+    if (tournament.state === 'finished' || tournament.state === 'cancelled') {
+      tournament = createNewTournament();
+      saveTournament();
+    }
+  }
+}
+
+function registerForTournament(userId) {
+  const p = ensureProfile(userId);
+  if (!tournament) return { error: 'no_tournament' };
+  if (tournament.state !== 'registration') return { error: 'registration_closed' };
+  if (tournament.players.length >= TOURNAMENT_MAX_PLAYERS) return { error: 'tournament_full' };
+  if (tournament.players.find(x => x.userId === userId)) return { error: 'already_registered' };
+  if ((p.coins || 0) < TOURNAMENT_ENTRY) return { error: 'not_enough_coins' };
+  p.coins -= TOURNAMENT_ENTRY;
+  p.updatedAt = Date.now();
+  tournament.players.push({ userId, name: p.name, rating: p.rating, joinedAt: Date.now() });
+  savePlayers();
+  saveTournament();
+  return { ok: true, coins: p.coins };
+}
+
+function unregisterFromTournament(userId) {
+  const p = ensureProfile(userId);
+  if (!tournament || tournament.state !== 'registration') return { error: 'too_late' };
+  const idx = tournament.players.findIndex(x => x.userId === userId);
+  if (idx === -1) return { error: 'not_registered' };
+  tournament.players.splice(idx, 1);
+  p.coins = (p.coins || 0) + TOURNAMENT_ENTRY;
+  p.updatedAt = Date.now();
+  savePlayers();
+  saveTournament();
+  return { ok: true, coins: p.coins };
+}
+
+function buildBracket(playersList) {
+  // Перемешиваем случайно
+  const shuffled = playersList.slice().sort(() => Math.random() - 0.5);
+  // Дополняем до 8 фейковыми bye
+  const N = 8;
+  const slots = shuffled.slice();
+  const byes = [];
+  while (slots.length < N) {
+    byes.push(null);
+    slots.push(null);
+  }
+  const matches = [];
+  for (let i = 0; i < N; i += 2) {
+    const p1 = slots[i] ? slots[i].userId : null;
+    const p2 = slots[i+1] ? slots[i+1].userId : null;
+    const status = (p1 && p2) ? 'waiting' : 'done';
+    const winner = p1 && !p2 ? p1 : (!p1 && p2 ? p2 : null);
+    matches.push({
+      id: 'r1_m' + (i/2 + 1),
+      p1, p2, winner, status,
+      roomId: null,
+      startedAt: status === 'done' ? Date.now() : null,
+      finishedAt: status === 'done' ? Date.now() : null
+    });
+  }
+  return { round1: matches, round2: null, round3: null };
+}
+
+function getRoundLabel(roundIndex) {
+  if (roundIndex === 1) return '¼ финала';
+  if (roundIndex === 2) return '½ финала';
+  if (roundIndex === 3) return 'Финал';
+  return 'Матч';
+}
+
+function getNextRoundIndex(roundIndex) { return roundIndex + 1; }
+function getNextRoundKey(roundIndex) {
+  if (roundIndex === 1) return 'round2';
+  if (roundIndex === 2) return 'round3';
+  return null;
+}
+function getPrevRoundKey(roundIndex) {
+  if (roundIndex === 2) return 'round1';
+  if (roundIndex === 3) return 'round2';
+  return null;
+}
+
+function buildNextRound(roundIndex) {
+  const prevKey = getPrevRoundKey(roundIndex);
+  if (!prevKey) return null;
+  const prev = tournament.bracket[prevKey];
+  if (!prev) return null;
+  const matches = [];
+  for (let i = 0; i < prev.length; i += 2) {
+    const m1 = prev[i], m2 = prev[i+1];
+    const p1 = m1.winner || null;
+    const p2 = m2.winner || null;
+    const status = (p1 && p2) ? 'waiting' : 'done';
+    const winner = p1 && !p2 ? p1 : (!p1 && p2 ? p2 : null);
+    matches.push({
+      id: 'r' + roundIndex + '_m' + (i/2 + 1),
+      p1, p2, winner, status,
+      roomId: null,
+      startedAt: status === 'done' ? Date.now() : null,
+      finishedAt: status === 'done' ? Date.now() : null
+    });
+  }
+  return matches;
+}
+
+function startTournament() {
+  if (!tournament) return;
+  if (tournament.players.length < TOURNAMENT_MIN_PLAYERS) {
+    // Отмена + возврат
+    for (const entry of tournament.players) {
+      const p = players[entry.userId];
+      if (p) { p.coins = (p.coins || 0) + TOURNAMENT_ENTRY; p.updatedAt = Date.now(); }
+      const o = online.get(entry.userId);
+      if (o && o.socket) o.socket.emit('tournamentCancelled', { reason: 'not_enough_players' });
+    }
+    savePlayers();
+    tournament.state = 'cancelled';
+    tournament.finishedAt = Date.now();
+    saveTournament();
+    return;
+  }
+  tournament.state = 'running';
+  tournament.startedAt = Date.now();
+  tournament.bracket = buildBracket(tournament.players);
+  saveTournament();
+  // Уведомляем всех участников
+  for (const entry of tournament.players) {
+    const o = online.get(entry.userId);
+    if (o && o.socket) o.socket.emit('tournamentStarted', { tournament: getTournamentForClient() });
+  }
+}
+
+function getTournamentForClient() {
+  if (!tournament) return null;
+  return {
+    id: tournament.id,
+    state: tournament.state,
+    startTime: tournament.startTime,
+    players: tournament.players.map(p => ({ userId: p.userId, name: p.name, rating: p.rating })),
+    bracket: tournament.bracket,
+    winner: tournament.winner,
+    second: tournament.second,
+    semifinalists: tournament.semifinalists,
+    entryFee: TOURNAMENT_ENTRY,
+    prize1: TOURNAMENT_PRIZE_1,
+    prize2: TOURNAMENT_PRIZE_2,
+    prize3: TOURNAMENT_PRIZE_3
+  };
+}
+
+function findMatchInRound(roundIndex, matchId) {
+  const key = 'round' + roundIndex;
+  if (!tournament || !tournament.bracket) return null;
+  const round = tournament.bracket[key];
+  if (!round) return null;
+  return round.find(m => m.id === matchId);
+}
+
+function tryStartTournamentMatch(match, roundIndex) {
+  if (!match || match.status !== 'waiting') return false;
+  if (!match.p1 || !match.p2) return false;
+  const o1 = online.get(match.p1);
+  const o2 = online.get(match.p2);
+  if (!o1 || !o1.socket || !o1.socket.connected) return false;
+  if (!o2 || !o2.socket || !o2.socket.connected) return false;
+  if (o1.roomId || o2.roomId) return false; // кто-то занят
+  const sequence = genSequence(300);
+  const ok = startMatch(match.p1, match.p2, o1.socket, o2.socket, {
+    type: 'tournament',
+    tournamentMatchId: match.id,
+    tournamentRoundLabel: getRoundLabel(roundIndex),
+    sequence
+  });
+  if (ok) {
+    match.status = 'playing';
+    match.startedAt = Date.now();
+    saveTournament();
+  }
+  return ok;
+}
+
+function advanceTournament(loserId, winnerId) {
+  if (!tournament || tournament.state !== 'running' || !tournament.bracket) return;
+  // Находим матч, где проиграл loserId
+  const rounds = [1, 2, 3];
+  for (const r of rounds) {
+    const key = 'round' + r;
+    const round = tournament.bracket[key];
+    if (!round) continue;
+    for (const m of round) {
+      if (m.status === 'playing' && ((m.p1 === loserId && m.p2 === winnerId) || (m.p2 === loserId && m.p1 === winnerId))) {
+        m.winner = winnerId;
+        m.status = 'done';
+        m.finishedAt = Date.now();
+        saveTournament();
+        // Проверяем, все ли матчи раунда завершены
+        const allDone = round.every(x => x.status === 'done');
+        if (allDone) {
+          if (r === 3) {
+            // Финал завершён
+            finishTournament(winnerId, m.p1 === winnerId ? m.p2 : m.p1);
+          } else {
+            // Строим следующий раунд
+            const nextKey = getNextRoundKey(r);
+            if (!tournament.bracket[nextKey]) {
+              tournament.bracket[nextKey] = buildNextRound(r + 1);
+              saveTournament();
+            }
+          }
+        }
+        return;
+      }
+    }
+  }
+}
+
+function finishTournament(winnerId, secondId) {
+  if (!tournament) return;
+  tournament.state = 'finished';
+  tournament.finishedAt = Date.now();
+  tournament.winner = winnerId;
+  tournament.second = secondId;
+  // Собираем полуфиналистов
+  const r2 = tournament.bracket.round2 || [];
+  const semis = [];
+  for (const m of r2) {
+    const l = m.p1 === m.winner ? m.p2 : m.p1;
+    if (l && l !== winnerId && l !== secondId) semis.push(l);
+  }
+  tournament.semifinalists = semis;
+  // Призы
+  const prizeSkinList = CHAMPION_SKINS.concat(CHAMPION_BACKGROUNDS);
+  const w = players[winnerId];
+  if (w) {
+    w.coins = (w.coins || 0) + TOURNAMENT_PRIZE_1;
+    if (!Array.isArray(w.tournamentWins)) w.tournamentWins = [];
+    w.tournamentWins.push(tournament.id);
+    // Случайная чемпионская награда из тех, которых ещё нет
+    const owned = (w.skins || []).concat(w.backgrounds || []);
+    const available = prizeSkinList.filter(x => !owned.includes(x));
+    if (available.length > 0) {
+      const pick = available[ri(available.length)];
+      grantChampionReward(winnerId, pick);
+    } else {
+      w.coins += TOURNAMENT_PRIZE_1; // дублируем приз
+    }
+    w.updatedAt = Date.now();
+    unlockAchievement(winnerId, 'tournament_1');
+  }
+  const s = players[secondId];
+  if (s) { s.coins = (s.coins || 0) + TOURNAMENT_PRIZE_2; s.updatedAt = Date.now(); }
+  for (const sid of semis) {
+    const sp = players[sid];
+    if (sp) { sp.coins = (sp.coins || 0) + TOURNAMENT_PRIZE_3; sp.updatedAt = Date.now(); }
+  }
+  savePlayers();
+  saveTournament();
+  // Уведомляем всех
+  for (const entry of tournament.players) {
+    const o = online.get(entry.userId);
+    if (o && o.socket) o.socket.emit('tournamentFinished', { tournament: getTournamentForClient() });
+  }
+}
+
+function tickTournament() {
+  ensureTournament();
+  if (!tournament) return;
+  const now = Date.now();
+  // Автостарт в момент начала
+  if (tournament.state === 'registration' && now >= tournament.startTime) {
+    startTournament();
+    return;
+  }
+  // Автостарт матчей раунда, если оба игрока онлайн
+  if (tournament.state === 'running' && tournament.bracket) {
+    for (const r of [1, 2, 3]) {
+      const key = 'round' + r;
+      const round = tournament.bracket[key];
+      if (!round) continue;
+      for (const m of round) {
+        if (m.status === 'waiting') tryStartTournamentMatch(m, r);
+      }
+    }
+  }
+}
+setInterval(tickTournament, 20000);
+
 // ============ REST ============
 app.get('/api/leaderboard', (req, res) => {
   try {
@@ -529,13 +930,26 @@ app.get('/api/leaderboard', (req, res) => {
   } catch (e) { res.status(500).json({ error: 'server_error' }); }
 });
 app.get('/api/season', (req, res) => { res.set('Cache-Control', 'no-store'); res.json(getActiveSeasonal()); });
+app.get('/api/tournament', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(getTournamentForClient());
+});
+app.get('/api/puzzle', (req, res) => {
+  try {
+    const dateStr = todayStr();
+    const sequence = genPuzzleSequence(dateStr, 500);
+    res.set('Cache-Control', 'no-store');
+    res.json({ date: dateStr, sequence });
+  } catch (e) { res.status(500).json({ error: 'server_error' }); }
+});
 app.get('/health', (req, res) => {
   res.status(200).json({
     ok: true, uptime: Math.floor(process.uptime()),
     players: Object.keys(players).length,
     online: online.size, rooms: customRooms.size,
     redisLoaded: playersLoaded,
-    season: getActiveSeasonal()
+    season: getActiveSeasonal(),
+    tournament: tournament ? { id: tournament.id, state: tournament.state, players: tournament.players.length } : null
   });
 });
 
@@ -562,13 +976,12 @@ io.on('connection', (socket) => {
         stats: { soloGames: 0, totalLines: 0, maxCombo: 0, duelGames: 0, duelWins: 0 },
         dailyQuests: null,
         referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
+        puzzleBest: 0, puzzleLastDate: null, tournamentWins: [],
         duelWins: 0, duelLosses: 0, soloGames: 0,
         updatedAt: Date.now()
       };
       players[userId] = p;
-      if (ref && typeof ref === 'string' && ref !== userId) {
-        applyReferral(userId, ref);
-      }
+      if (ref && typeof ref === 'string' && ref !== userId) applyReferral(userId, ref);
     } else if (incomingName && incomingName !== p.name) {
       p.name = incomingName; p.updatedAt = Date.now();
     }
@@ -576,7 +989,7 @@ io.on('connection', (socket) => {
     getOrCreateDailyQuests(userId);
     savePlayers();
     socket.data.userId = userId;
-    if (cb) cb({ profile: publicProfile(userId), isNew: isNew, season: getActiveSeasonal() });
+    if (cb) cb({ profile: publicProfile(userId), isNew, season: getActiveSeasonal(), tournament: getTournamentForClient() });
   });
 
   socket.on('setName', async ({ userId, name }, cb) => {
@@ -699,15 +1112,30 @@ io.on('connection', (socket) => {
     if (cb) cb({ ok: true, reward: q.reward, profile: publicProfile(userId), quests: dq });
   });
 
-  socket.on('submitSoloResult', async ({ userId, score, maxCombo, linesCleared }, cb) => {
+  // ---- SOLO (с режимами) ----
+  socket.on('submitSoloResult', async ({ userId, score, maxCombo, linesCleared, mode }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
     const p = ensureProfile(userId);
+    mode = mode || 'classic';
     score = clamp(score, 0, MAX_SOLO_SCORE);
     maxCombo = clamp(maxCombo || 0, 0, 100);
     linesCleared = clamp(linesCleared || 0, 0, 10000);
-    const gain = Math.min(MAX_SOLO_GAIN, Math.floor(score / 8));
-    const coinsGain = Math.floor(score / SOLO_COIN_DIVISOR);
+
+    let ratingMult = 1.0, coinMult = 1.0;
+    if (mode === 'speedrun') { ratingMult = 0.7; coinMult = 1.2; }
+    else if (mode === 'zen') { ratingMult = 0; coinMult = 1.0; }
+    else if (mode === 'puzzle') {
+      ratingMult = 1.0; coinMult = 1.5;
+      // Только раз в день
+      const today = todayStr();
+      if (p.puzzleLastDate === today) { if (cb) cb({ error: 'puzzle_already_played' }); return; }
+      p.puzzleLastDate = today;
+      if (score > (p.puzzleBest || 0)) p.puzzleBest = score;
+    }
+
+    const gain = Math.min(MAX_SOLO_GAIN, Math.floor((score / 8) * ratingMult));
+    const coinsGain = Math.floor((score / SOLO_COIN_DIVISOR) * coinMult);
 
     const prevRank = getRank(p.rating);
     p.rating += gain;
@@ -723,7 +1151,7 @@ io.on('connection', (socket) => {
     if (linesCleared > 0) updateQuestProgress(userId, 'lines', linesCleared);
     if (maxCombo > 0) updateQuestProgress(userId, 'combo', maxCombo);
     if (score > 0) updateQuestProgress(userId, 'score_solo', score);
-    checkAchievements(userId, { gamePlayed: true, soloScore: score, maxCombo: maxCombo });
+    checkAchievements(userId, { gamePlayed: true, soloScore: score, maxCombo });
 
     const refResult = grantReferralIfNeeded(userId);
     let refBonus = 0;
@@ -732,12 +1160,46 @@ io.on('connection', (socket) => {
     savePlayers();
     const newRank = getRank(p.rating);
     const rankUp = newRank.name !== prevRank.name;
-    if (cb) cb({ profile: publicProfile(userId), gain, coinsGain, refBonus, rankUp: rankUp ? newRank : null });
+    if (cb) cb({ profile: publicProfile(userId), gain, coinsGain, refBonus, mode, rankUp: rankUp ? newRank : null });
   });
 
   socket.on('getLeaderboard', ({ userId, type }, cb) => {
     try { if (cb) cb(buildLeaderboard(type, userId)); }
     catch (e) { if (cb) cb({ list: [], myPosition: null, total: 0, type }); }
+  });
+
+  // ---- TOURNAMENT ----
+  socket.on('tournamentStatus', async ({ userId }, cb) => {
+    await playersReady;
+    ensureTournament();
+    if (cb) cb({ tournament: getTournamentForClient() });
+  });
+
+  socket.on('tournamentRegister', async ({ userId }, cb) => {
+    await playersReady;
+    ensureTournament();
+    if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+    const result = registerForTournament(userId);
+    if (result.error) { if (cb) cb(result); return; }
+    // Оповещаем всех зарегистрированных + показываем новичка
+    for (const entry of tournament.players) {
+      const o = online.get(entry.userId);
+      if (o && o.socket) o.socket.emit('tournamentUpdated', { tournament: getTournamentForClient() });
+    }
+    if (cb) cb({ ok: true, profile: publicProfile(userId), tournament: getTournamentForClient() });
+  });
+
+  socket.on('tournamentUnregister', async ({ userId }, cb) => {
+    await playersReady;
+    ensureTournament();
+    if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+    const result = unregisterFromTournament(userId);
+    if (result.error) { if (cb) cb(result); return; }
+    for (const entry of tournament.players) {
+      const o = online.get(entry.userId);
+      if (o && o.socket) o.socket.emit('tournamentUpdated', { tournament: getTournamentForClient() });
+    }
+    if (cb) cb({ ok: true, profile: publicProfile(userId), tournament: getTournamentForClient() });
   });
 
   // ============ FRIENDS ============
@@ -863,9 +1325,7 @@ io.on('connection', (socket) => {
     o.lastEmoteAt = now;
     if (o.opponentId) {
       const opp = online.get(o.opponentId);
-      if (opp && opp.socket) {
-        opp.socket.emit('oppEmote', { emoji: emoji });
-      }
+      if (opp && opp.socket) opp.socket.emit('oppEmote', { emoji });
     }
   });
 
@@ -976,6 +1436,21 @@ io.on('connection', (socket) => {
     if (!o) return;
     const winnerId = o.opponentId;
 
+    // Турнирный матч?
+    if (o.matchType === 'tournament' && o.tournamentMatchId && winnerId) {
+      const prevRoom = o.roomId;
+      if (prevRoom) socket.leave(prevRoom);
+      o.opponentId = null; o.roomId = null; o.matchType = 'duel'; o.tournamentMatchId = null;
+      const winnerO = online.get(winnerId);
+      if (winnerO) { winnerO.opponentId = null; winnerO.roomId = null; winnerO.matchType = 'duel'; winnerO.tournamentMatchId = null; }
+      const loserSocket = socket;
+      const winnerSocket = winnerO ? winnerO.socket : null;
+      if (winnerSocket) winnerSocket.emit('youWon', { tournament: true });
+      loserSocket.emit('youLost', { tournament: true });
+      advanceTournament(loserId, winnerId);
+      return;
+    }
+
     let winnerDelta = 0, loserDelta = 0, winnerCoins = 0, loserCoins = 0;
     let winnerNewRating = null, loserNewRating = null;
 
@@ -1005,7 +1480,6 @@ io.on('connection', (socket) => {
       updateQuestProgress(loserId, 'play_duel', 1);
       checkAchievements(winnerId, { gamePlayed: true });
       checkAchievements(loserId, { gamePlayed: true });
-
       grantReferralIfNeeded(winnerId);
       grantReferralIfNeeded(loserId);
       savePlayers();
@@ -1014,10 +1488,10 @@ io.on('connection', (socket) => {
     const opp = winnerId ? online.get(winnerId) : null;
     if (opp && opp.socket) {
       opp.socket.emit('youWon', { ratingDelta: winnerDelta, newRating: winnerNewRating, coinsGained: winnerCoins });
-      opp.opponentId = null; opp.roomId = null;
+      opp.opponentId = null; opp.roomId = null; opp.matchType = 'duel'; opp.tournamentMatchId = null;
     }
     socket.emit('youLost', { ratingDelta: -loserDelta, newRating: loserNewRating, coinsGained: loserCoins });
-    o.opponentId = null; o.roomId = null;
+    o.opponentId = null; o.roomId = null; o.matchType = 'duel'; o.tournamentMatchId = null;
   });
 
   socket.on('leaveGame', () => {
@@ -1026,9 +1500,9 @@ io.on('connection', (socket) => {
     if (o.roomId) socket.leave(o.roomId);
     if (o.opponentId) {
       const opp = online.get(o.opponentId);
-      if (opp && opp.socket) { opp.socket.emit('oppLeft'); opp.opponentId = null; opp.roomId = null; }
+      if (opp && opp.socket) { opp.socket.emit('oppLeft'); opp.opponentId = null; opp.roomId = null; opp.matchType = 'duel'; opp.tournamentMatchId = null; }
     }
-    o.opponentId = null; o.roomId = null;
+    o.opponentId = null; o.roomId = null; o.matchType = 'duel'; o.tournamentMatchId = null;
   });
 
   socket.on('disconnect', () => {
@@ -1057,4 +1531,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Block Blast Duel v8 on http://localhost:' + PORT));
+server.listen(PORT, () => console.log('Block Blast Duel v9 on http://localhost:' + PORT));
