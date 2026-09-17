@@ -1961,16 +1961,42 @@ line-height: 1;
     #tourLabel.on { display: block; }
     
     /* Спидран таймер */
-    #speedrunTimer {
-    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-    padding: 6px 16px; border-radius: 999px;
-    background: linear-gradient(135deg, #ff4757, #ff8b1a);
-    color: #fff; font-size: 18px; font-weight: 900;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 20px rgba(255,71,87,0.6);
-    display: none; z-index: 10;
-    }
+#speedrunTimer {
+position: fixed !important;
+top: max(60px, calc(env(safe-area-inset-top) + 8px)) !important;
+left: 50% !important;
+transform: translateX(-50%) !important;
+padding: 8px 20px;
+border-radius: 999px;
+background: linear-gradient(135deg, #ff4757, #ff8b1a);
+color: #fff;
+font-size: 20px;
+font-weight: 900;
+font-variant-numeric: tabular-nums;
+letter-spacing: 2px;
+box-shadow: 0 6px 24px rgba(255,71,87,0.6);
+display: none;
+z-index: 9999 !important;
+pointer-events: none;
+}
+#speedrunTimer.on { display: block !important; }
+#speedrunTimer.warning { animation: srPulse 0.5s ease-in-out infinite; }
+@keyframes srPulse {
+0%,100% { transform: translateX(-50%) scale(1); }
+50% { transform: translateX(-50%) scale(1.12); }
+}
+#speedrunTimer.on { display: block; }
+#speedrunTimer.warning {
+animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infinite;
+}
+@keyframes srPulse {
+0%,100% { transform: translateX(-50%) scale(1); }
+50% { transform: translateX(-50%) scale(1.08); }
+}
+@keyframes srPulseColor {
+0%,100% { background: linear-gradient(135deg, #ff4757, #ff8b1a); }
+50% { background: linear-gradient(135deg, #ff0000, #ff4757); }
+}
     #speedrunTimer.on { display: block; }
     #speedrunTimer.warning { animation: srPulse 0.5s ease-in-out infinite; }
     @keyframes srPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.1); } }
@@ -2088,8 +2114,9 @@ line-height: 1;
         </div>
         <div id="connStatus">Нет связи с сервером</div>
         <div class="soundToggles">
-          <button class="soundToggle" id="soundToggle">🔊 Звук</button>
-          <button class="soundToggle off" id="musicToggle">🎵 Музыка</button>
+        <button class="soundToggle" id="soundToggle">🔊 Звук</button>
+        <button class="soundToggle off" id="musicToggle">🎵 Музыка</button>
+        <button class="soundToggle" id="langToggle">🇬🇧 EN</button>
         </div>
       </div>
     </div>
@@ -2106,8 +2133,7 @@ line-height: 1;
       </div>
       <div id="topBarCenter">
         <div id="tourLabel"></div>
-        <div id="speedrunTimer">60</div>
-        <button id="exitBtn" title="Выйти">×</button>
+                <button id="exitBtn" title="Выйти">×</button>
         <div id="emoteWrap">
           <button id="emoteBtn" class="hidden" title="Эмодзи">💬</button>
           <div id="emotePanel"></div>
@@ -2121,6 +2147,7 @@ line-height: 1;
         </span>
       </div>
     </div>
+      <div id="speedrunTimer">60</div>
       <div id="boardWrap"><canvas id="boardCanvas"></canvas></div>
       <div id="tray">
         <div class="pieceSlot" data-i="0"></div>
@@ -2181,6 +2208,344 @@ line-height: 1;
   <script>
     (function () {
   'use strict';
+    // ============ I18N ============
+    const I18N = {
+    ru: {
+    // Меню
+    menuPlay: 'Играть',
+    menuPlaySub: 'Онлайн, соло, режимы',
+    menuCommunity: 'Сообщество',
+    menuCommunitySub: 'Друзья и лидеры',
+    menuProgress: 'Прогресс',
+    menuProgressSub: 'Квесты и достижения',
+    menuShop: 'Магазин',
+    menuShopSub: 'Скины, фоны, аватарки',
+    editNameTitle: 'Изменить имя',
+    soundOn: 'Звук',
+    musicOn: 'Музыка',
+    // Играть подменю
+    playTitle: 'ИГРАТЬ',
+    playOnline: 'Онлайн-дуэль',
+    playOnlineSub: 'Случайный соперник',
+    playClassic: 'Классика',
+    playClassicSub: 'Рейтинг за рекорд',
+    playSpeedrun: 'Спидран',
+    playSpeedrunSub: '60 секунд, монеты x1.2',
+    playZen: 'Дзен',
+    playZenSub: 'Без проигрыша, только монеты',
+    playPuzzle: 'Пазл дня',
+    playPuzzleSub: 'Одно поле для всех, раз в день',
+    // Сообщество
+    communityTitle: 'СООБЩЕСТВО',
+    communityFriends: 'Друзья',
+    communityFriendsSub: 'Список, заявки, приглашения',
+    communityLeaders: 'Таблицы лидеров',
+    communityLeadersSub: 'Общий, Соло, Дуэль',
+    // Прогресс
+    progressTitle: 'ПРОГРЕСС',
+    progressTournament: 'Турнир недели',
+    progressTournamentSub: 'Воскресенье 18:00 МСК, взнос 100',
+    progressQuests: 'Квесты дня',
+    progressQuestsSub: '3 задания на сегодня',
+    progressAch: 'Достижения',
+    progressAchSub: 'Прогресс и награды',
+    // Кнопки
+    btnBack: 'Назад',
+    btnClose: 'Закрыть',
+    btnCancel: 'Отмена',
+    btnSave: 'Сохранить',
+    btnOk: 'Ок',
+    btnPlayAgain: 'Играть снова',
+    btnToMenu: 'В меню',
+    // Игровые экраны
+    youWon: 'ПОБЕДА!',
+    youLost: 'ПОРАЖЕНИЕ',
+    oppLeft: 'СОПЕРНИК УШЁЛ',
+    yourScore: 'Ваш счёт',
+    oppScore: 'Соперник',
+    youLabel: 'Вы',
+    oppLabel: 'Соперник',
+    searchingOpp: 'ПОИСК СОПЕРНИКА',
+    searchingOppText: 'Ожидаем второго игрока...',
+    noMorePlaces: 'Некуда ставить фигуры.',
+    // Магазин
+    shopTitle: 'МАГАЗИН',
+    shopCoins: 'монет',
+    shopTabSkins: 'Скины',
+    shopTabBackgrounds: 'Фоны',
+    shopTabAvatars: 'Аватарки',
+    shopTabTitles: 'Титулы',
+    shopBuy: 'Купить',
+    shopEquip: 'Надеть',
+    shopEquipBg: 'Применить',
+    shopActive: 'Активен',
+    shopNotEnough: 'Не хватает',
+    shopFree: 'Бесплатно',
+    shopChampion: 'Только за турнир',
+    shopChampionSeason: 'Сезон турнира',
+    // Друзья
+    friendsTitle: 'ДРУЗЬЯ',
+    friendsSearch: 'Найти',
+    friendsSearchPlaceholder: 'ID или ник',
+    friendsMy: 'Мои друзья',
+    friendsRequests: 'Заявки',
+    friendsEmpty: 'Пока никого. Добавьте по ID.',
+    friendsAdd: 'Добавить',
+    friendsRemove: 'Удалить',
+    friendsInvite: 'Играть',
+    friendsRefLink: 'Реферальная ссылка',
+    friendsRefCount: 'Приглашено',
+    friendsRefCopy: 'Копировать',
+    friendsRefCopied: 'Готово',
+    friendsNobody: 'Никого не найдено',
+    // Квесты
+    questsTitle: 'КВЕСТЫ ДНЯ',
+    questsClaim: 'Забрать награду',
+    questsClaimed: 'Получено',
+    questsInProgress: 'В процессе',
+    // Достижения
+    achTitle: 'ДОСТИЖЕНИЯ',
+    // Лидеры
+    leadersTitle: 'ЛИДЕРЫ',
+    leadersOverall: 'Общий',
+    leadersSolo: 'Соло',
+    leadersDuel: 'Дуэль',
+    leadersRefresh: 'Обновить',
+    leadersEmpty: 'Пока никого нет.',
+    // Турнир
+    tourTitle: 'ТУРНИР НЕДЕЛИ',
+    tourSubtitle: 'Воскресенье, 18:00 МСК',
+    tourBeforeStart: 'до старта',
+    tourRunning: 'ИДЁТ',
+    tourRunningSub: 'турнир в процессе',
+    tourFinished: 'ЗАВЕРШЁН',
+    tourCancelled: 'ОТМЕНЁН',
+    tourCancelledSub: 'мало игроков',
+    tourPrize1: '1 место',
+    tourPrize2: '2 место',
+    tourPrize3: '3-4 место',
+    tourWinnerLabel: 'победитель турнира',
+    tourParticipants: 'Участники',
+    tourBracket: 'Сетка',
+    tourFree: 'свободно',
+    tourRegister: 'Записаться',
+    tourUnregister: 'Отменить запись',
+    tourRegistered: 'Вы участвуете. Ждём соперника...',
+    tourFull: 'Мест нет (8/8)',
+    tourNeedCoins: 'Нужно',
+    tourCoinsShort: 'монет (у вас',
+    tourRegisterOk: 'Запись подтверждена',
+    tourRegisterCancel: 'Запись отменена',
+    tourRound1: '1/4 финала',
+    tourRound2: '1/2 финала',
+    tourRound3: 'Финал',
+    // Инвайт
+    inviteWait: 'ЖДЁМ ДРУГА...',
+    inviteWaitText: 'Как только друг откроет ссылку — матч начнётся.',
+    inviteCopy: 'Скопировать',
+    inviteCopied: 'Скопировано',
+    // Разное
+    loading: 'Загрузка...',
+    connection: 'СОЕДИНЕНИЕ',
+    connecting: 'Соединяемся с сервером...',
+    offline: 'Нет соединения',
+    offlineText: 'Доступна только одиночная игра.',
+    playSoloOffline: 'Играть соло',
+    nameTitle: 'Ваше имя',
+    nameHint: 'От 2 до 18 символов. Имя увидят другие игроки.',
+    // Тост и ошибки
+    toastCopyOk: 'Скопировано',
+    toastNoConnection: 'Нет связи',
+    toastError: 'Ошибка',
+    toastQuestClaimed: 'монет получено',
+    toastNewRank: 'НОВЫЙ РАНГ!',
+    toastGameOver: 'ИГРА ОКОНЧЕНА',
+    toastAdReward: 'Скин активирован',
+    toastAdSkipped: 'Реклама пропущена',
+    toastFriendOnline: 'зашёл в игру',
+    toastRefReward: 'за друга',
+    toastReferral: 'Приглашено',
+    toastAchUnlocked: 'получено',
+    // Реклама
+    adDemo: 'Демо-реклама',
+    adContinue: 'Продолжение игры',
+    adDoubleCoins: 'Удвоение монет',
+    adFreeSkin: 'Бесплатный скин на 24 часа',
+    adReward: 'Награда',
+    adLoading: 'Идёт показ рекламы...',
+    adContinueBtn: 'Продолжить за рекламу',
+    adDoubleBtn: 'x2 монет за рекламу',
+    adSkinBtn: 'Скин на 24ч',
+    // Селект языка
+    langRu: 'Русский',
+    langEn: 'English'
+    },
+    en: {
+    menuPlay: 'Play',
+    menuPlaySub: 'Online, solo, modes',
+    menuCommunity: 'Community',
+    menuCommunitySub: 'Friends and leaders',
+    menuProgress: 'Progress',
+    menuProgressSub: 'Quests and achievements',
+    menuShop: 'Shop',
+    menuShopSub: 'Skins, backgrounds, avatars',
+    editNameTitle: 'Edit name',
+    soundOn: 'Sound',
+    musicOn: 'Music',
+    playTitle: 'PLAY',
+    playOnline: 'Online duel',
+    playOnlineSub: 'Random opponent',
+    playClassic: 'Classic',
+    playClassicSub: 'Rating for high score',
+    playSpeedrun: 'Speedrun',
+    playSpeedrunSub: '60 seconds, coins x1.2',
+    playZen: 'Zen',
+    playZenSub: 'No loss, coins only',
+    playPuzzle: 'Daily puzzle',
+    playPuzzleSub: 'Same board for all, once a day',
+    communityTitle: 'COMMUNITY',
+    communityFriends: 'Friends',
+    communityFriendsSub: 'List, requests, invites',
+    communityLeaders: 'Leaderboards',
+    communityLeadersSub: 'Overall, Solo, Duel',
+    progressTitle: 'PROGRESS',
+    progressTournament: 'Weekly tournament',
+    progressTournamentSub: 'Sunday 6 PM MSK, entry 100',
+    progressQuests: 'Daily quests',
+    progressQuestsSub: '3 tasks for today',
+    progressAch: 'Achievements',
+    progressAchSub: 'Progress and rewards',
+    btnBack: 'Back',
+    btnClose: 'Close',
+    btnCancel: 'Cancel',
+    btnSave: 'Save',
+    btnOk: 'OK',
+    btnPlayAgain: 'Play again',
+    btnToMenu: 'To menu',
+    youWon: 'VICTORY!',
+    youLost: 'DEFEAT',
+    oppLeft: 'OPPONENT LEFT',
+    yourScore: 'Your score',
+    oppScore: 'Opponent',
+    youLabel: 'You',
+    oppLabel: 'Opponent',
+    searchingOpp: 'SEARCHING OPPONENT',
+    searchingOppText: 'Waiting for a player...',
+    noMorePlaces: 'No space for figures.',
+    shopTitle: 'SHOP',
+    shopCoins: 'coins',
+    shopTabSkins: 'Skins',
+    shopTabBackgrounds: 'Backgrounds',
+    shopTabAvatars: 'Avatars',
+    shopTabTitles: 'Titles',
+    shopBuy: 'Buy',
+    shopEquip: 'Equip',
+    shopEquipBg: 'Apply',
+    shopActive: 'Active',
+    shopNotEnough: 'Not enough',
+    shopFree: 'Free',
+    shopChampion: 'Tournament only',
+    shopChampionSeason: 'Tournament season',
+    friendsTitle: 'FRIENDS',
+    friendsSearch: 'Find',
+    friendsSearchPlaceholder: 'ID or name',
+    friendsMy: 'My friends',
+    friendsRequests: 'Requests',
+    friendsEmpty: 'Nobody yet. Add by ID.',
+    friendsAdd: 'Add',
+    friendsRemove: 'Remove',
+    friendsInvite: 'Play',
+    friendsRefLink: 'Referral link',
+    friendsRefCount: 'Invited',
+    friendsRefCopy: 'Copy',
+    friendsRefCopied: 'Done',
+    friendsNobody: 'Nobody found',
+    questsTitle: 'DAILY QUESTS',
+    questsClaim: 'Claim reward',
+    questsClaimed: 'Claimed',
+    questsInProgress: 'In progress',
+    achTitle: 'ACHIEVEMENTS',
+    leadersTitle: 'LEADERS',
+    leadersOverall: 'Overall',
+    leadersSolo: 'Solo',
+    leadersDuel: 'Duel',
+    leadersRefresh: 'Refresh',
+    leadersEmpty: 'Nobody yet.',
+    tourTitle: 'WEEKLY TOURNAMENT',
+    tourSubtitle: 'Sunday, 6 PM MSK',
+    tourBeforeStart: 'until start',
+    tourRunning: 'LIVE',
+    tourRunningSub: 'tournament in progress',
+    tourFinished: 'FINISHED',
+    tourCancelled: 'CANCELLED',
+    tourCancelledSub: 'not enough players',
+    tourPrize1: '1st place',
+    tourPrize2: '2nd place',
+    tourPrize3: '3-4 place',
+    tourWinnerLabel: 'tournament winner',
+    tourParticipants: 'Participants',
+    tourBracket: 'Bracket',
+    tourFree: 'free',
+    tourRegister: 'Register',
+    tourUnregister: 'Cancel registration',
+    tourRegistered: 'You are in. Waiting for opponent...',
+    tourFull: 'No slots (8/8)',
+    tourNeedCoins: 'Need',
+    tourCoinsShort: 'coins (you have',
+    tourRegisterOk: 'Registration confirmed',
+    tourRegisterCancel: 'Registration cancelled',
+    tourRound1: '1/4 final',
+    tourRound2: '1/2 final',
+    tourRound3: 'Final',
+    inviteWait: 'WAITING FOR FRIEND...',
+    inviteWaitText: 'Match will start when your friend opens the link.',
+    inviteCopy: 'Copy link',
+    inviteCopied: 'Copied',
+    loading: 'Loading...',
+    connection: 'CONNECTION',
+    connecting: 'Connecting to server...',
+    offline: 'No connection',
+    offlineText: 'Only solo game available.',
+    playSoloOffline: 'Play solo',
+    nameTitle: 'Your name',
+    nameHint: '2 to 18 characters. Other players will see your name.',
+    toastCopyOk: 'Copied',
+    toastNoConnection: 'No connection',
+    toastError: 'Error',
+    toastQuestClaimed: 'coins received',
+    toastNewRank: 'NEW RANK!',
+    toastGameOver: 'GAME OVER',
+    toastAdReward: 'Skin activated',
+    toastAdSkipped: 'Ad skipped',
+    toastFriendOnline: 'joined the game',
+    toastRefReward: 'for friend',
+    toastReferral: 'Invited',
+    toastAchUnlocked: 'received',
+    adDemo: 'Demo ad',
+    adContinue: 'Continue game',
+    adDoubleCoins: 'Double coins',
+    adFreeSkin: 'Free skin for 24h',
+    adReward: 'Reward',
+    adLoading: 'Ad is playing...',
+    adContinueBtn: 'Continue for ad',
+    adDoubleBtn: 'x2 coins for ad',
+    adSkinBtn: 'Skin for 24h',
+    langRu: 'Русский',
+    langEn: 'English'
+    }
+    };
+    
+    let currentLang = localStorage.getItem('bbd_lang') || 'ru';
+    function t(key) {
+    const dict = I18N[currentLang] || I18N.ru;
+    return dict[key] || I18N.ru[key] || key;
+    }
+    function setLang(lang) {
+    if (lang !== 'ru' && lang !== 'en') lang = 'ru';
+    currentLang = lang;
+    localStorage.setItem('bbd_lang', lang);
+    applyI18n();
+    }
 
   // ============ CONSTANTS ============
   const SHAPES = [
@@ -4732,73 +5097,77 @@ line-height: 1;
   }
   // ============ ГЛАВНЫЕ ПОДМЕНЮ ============
   function showPlayMenu() {
-  showOverlay('🎮 ИГРАТЬ', '', [
-  { text: 'Назад', action: showMenu, secondary: true }
-  ], false);
-  $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
-    + '<button class="submenuBtn online" id="smOnline">'
-        +   '<span class="icon">🌐</span>'
-        +   '<span class="text">Онлайн-дуэль<small>Случайный соперник</small></span>'
-        + '</button>'
-    + '<button class="submenuBtn solo" id="smSolo">'
-        +   '<span class="icon">🎯</span>'
-        +   '<span class="text">Классика<small>Рейтинг за рекорд</small></span>'
-        + '</button>'
-          + '<button class="submenuBtn" id="smSpeed" style="border-color:rgba(255,71,87,0.5);">'
-          +   '<span class="icon">⏱️</span>'
-          +   '<span class="text">Спидран<small>60 секунд · монеты ×1.2</small></span>'
-          + '</button>'
-    + '<button class="submenuBtn" id="smZen" style="border-color:rgba(46,213,115,0.5);">'
-        +   '<span class="icon">🧘</span>'
-        +   '<span class="text">Дзен<small>Без проигрыша · только монеты</small></span>'
-        + '</button>'
-    + '<button class="submenuBtn" id="smPuzzle" style="border-color:rgba(255,215,0,0.5);">'
-        +   '<span class="icon">🧩</span>'
-        +   '<span class="text">Пазл дня<small>Одно поле для всех · раз в день</small></span>'
-        + '</button>'
-    + '</div>';
-  $('smOnline').onclick = function() { hideOverlay(); startDuelMatchmaking(); };
-  $('smSolo').onclick = function() { hideOverlay(); startSolo('classic'); };
-  $('smSpeed').onclick = function() { hideOverlay(); startSolo('speedrun'); };
-  $('smZen').onclick = function() { hideOverlay(); startSolo('zen'); };
-  $('smPuzzle').onclick = function() { hideOverlay(); startPuzzle(); };
+    showOverlay('🎮 ' + t('playTitle'), '', [
+      { text: t('btnBack'), action: showMenu, secondary: true }
+    ], false);
+    const html = ''
+      + '<div style="display:flex;flex-direction:column;gap:8px;">'
+      + '<button class="submenuBtn online" id="smOnline">'
+      + '<span class="icon">🌐</span>'
+      + '<span class="text">' + t('playOnline') + '<small>' + t('playOnlineSub') + '</small></span>'
+      + '</button>'
+      + '<button class="submenuBtn solo" id="smSolo">'
+      + '<span class="icon">🎯</span>'
+      + '<span class="text">' + t('playClassic') + '<small>' + t('playClassicSub') + '</small></span>'
+      + '</button>'
+      + '<button class="submenuBtn" id="smSpeed" style="border-color:rgba(255,71,87,0.5);">'
+      + '<span class="icon">⏱️</span>'
+      + '<span class="text">' + t('playSpeedrun') + '<small>' + t('playSpeedrunSub') + '</small></span>'
+      + '</button>'
+      + '<button class="submenuBtn" id="smZen" style="border-color:rgba(46,213,115,0.5);">'
+      + '<span class="icon">🧘</span>'
+      + '<span class="text">' + t('playZen') + '<small>' + t('playZenSub') + '</small></span>'
+      + '</button>'
+      + '<button class="submenuBtn" id="smPuzzle" style="border-color:rgba(255,215,0,0.5);">'
+      + '<span class="icon">🧩</span>'
+      + '<span class="text">' + t('playPuzzle') + '<small>' + t('playPuzzleSub') + '</small></span>'
+      + '</button>'
+      + '</div>';
+    $('overlayCustom').innerHTML = html;
+    $('smOnline').onclick = function() { hideOverlay(); startDuelMatchmaking(); };
+    $('smSolo').onclick = function() { hideOverlay(); startSolo('classic'); };
+    $('smSpeed').onclick = function() { hideOverlay(); startSolo('speedrun'); };
+    $('smZen').onclick = function() { hideOverlay(); startSolo('zen'); };
+    $('smPuzzle').onclick = function() { hideOverlay(); startPuzzle(); };
   }
 
   function showCommunityMenu() {
-    showOverlay('👥 СООБЩЕСТВО', '', [
-      { text: 'Назад', action: showMenu, secondary: true }
-    ], false);
-    $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
-      + '<button class="submenuBtn" id="smFriends">'
-      +   '<span class="icon">👫</span>'
-      +   '<span class="text">Друзья<small>Список, заявки, приглашения</small></span>'
-      + '</button>'
-      + '<button class="submenuBtn" id="smLeaders" style="border-color:rgba(255,215,0,0.4);">'
-      +   '<span class="icon">🏆</span>'
-      +   '<span class="text">Таблицы лидеров<small>Общий · Соло · Дуэль</small></span>'
-      + '</button>'
-      + '</div>';
-    $('smFriends').onclick = function() { Audio.click(); showFriendsOverlay(); };
-    $('smLeaders').onclick = function() { Audio.click(); showLeaderboardOverlay(); };
+  showOverlay('👥 ' + t('communityTitle'), '', [
+  { text: t('btnBack'), action: showMenu, secondary: true }
+  ], false);
+  const html = ''
+  + '<div style="display:flex;flex-direction:column;gap:8px;">'
+    + '<button class="submenuBtn" id="smFriends">'
+        + '<span class="icon">👫</span>'
+        + '<span class="text">' + t('communityFriends') + '<small>' + t('communityFriendsSub') + '</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn" id="smLeaders" style="border-color:rgba(255,215,0,0.4);">'
+        + '<span class="icon">🏆</span>'
+        + '<span class="text">' + t('communityLeaders') + '<small>' + t('communityLeadersSub') + '</small></span>'
+        + '</button>'
+    + '</div>';
+  $('overlayCustom').innerHTML = html;
+  $('smFriends').onclick = function() { Audio.click(); showFriendsOverlay(); };
+  $('smLeaders').onclick = function() { Audio.click(); showLeaderboardOverlay(); };
   }
 
   function showProgressMenu() {
-  showOverlay('ПРОГРЕСС', '', [
-  { text: 'Назад', action: showMenu, secondary: true }
+  showOverlay('🏆 ' + t('progressTitle'), '', [
+  { text: t('btnBack'), action: showMenu, secondary: true }
   ], false);
   const html = ''
   + '<div style="display:flex;flex-direction:column;gap:8px;">'
     + '<button class="submenuBtn" id="smTour" style="border-color:rgba(255,215,0,0.5);">'
         + '<span class="icon">🏆</span>'
-        + '<span class="text">Турнир недели<small>Воскресенье 18:00 МСК, взнос 100 монет</small></span>'
+        + '<span class="text">' + t('progressTournament') + '<small>' + t('progressTournamentSub') + '</small></span>'
         + '</button>'
     + '<button class="submenuBtn" id="smQuests" style="border-color:rgba(46,213,115,0.4);">'
         + '<span class="icon">📅</span>'
-        + '<span class="text">Квесты дня<small>3 задания на сегодня</small></span>'
+        + '<span class="text">' + t('progressQuests') + '<small>' + t('progressQuestsSub') + '</small></span>'
         + '</button>'
     + '<button class="submenuBtn" id="smAch" style="border-color:rgba(255,215,0,0.4);">'
         + '<span class="icon">🏅</span>'
-        + '<span class="text">Достижения<small>Прогресс и награды</small></span>'
+        + '<span class="text">' + t('progressAch') + '<small>' + t('progressAchSub') + '</small></span>'
         + '</button>'
     + '</div>';
   $('overlayCustom').innerHTML = html;
@@ -4855,7 +5224,11 @@ line-height: 1;
     $('nameCancel').addEventListener('click', function() { closeNameInput(); tryJoinPendingRoom(); });
     $('nameSave').addEventListener('click', saveName);
     $('nameInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') saveName(); });
-
+        $('langToggle').addEventListener('click', function() {
+      Audio.click();
+      setLang(currentLang === 'ru' ? 'en' : 'ru');
+      renderMenuRank();
+    });
     $('soundToggle').addEventListener('click', function() {
       Audio.init();
       Audio.enabled = !Audio.enabled;
@@ -4985,7 +5358,49 @@ line-height: 1;
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
   }
-
+    function applyI18n() {
+    // Обновляем все элементы с data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      const key = el.getAttribute('data-i18n');
+      const text = t(key);
+      if (text) el.textContent = text;
+    });
+    // Обновляем placeholder'ы
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+      const key = el.getAttribute('data-i18n-placeholder');
+      const text = t(key);
+      if (text) el.placeholder = text;
+    });
+    // Обновляем title
+    document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+      const key = el.getAttribute('data-i18n-title');
+      const text = t(key);
+      if (text) el.title = text;
+    });
+    // Обновляем звук/музыку
+    const soundBtn = $('soundToggle');
+    if (soundBtn) {
+      const off = soundBtn.classList.contains('off');
+      soundBtn.textContent = '🔊 ' + t('soundOn');
+    }
+    const musicBtn = $('musicToggle');
+    if (musicBtn) {
+      musicBtn.textContent = '🎵 ' + t('musicOn');
+    }
+    // Обновляем флаг языка
+    const langBtn = $('langToggle');
+    if (langBtn) {
+      langBtn.textContent = currentLang === 'ru' ? '🇬🇧 EN' : '🇷🇺 RU';
+    }
+    // Если открыт оверлей — перерисовываем его
+    const ov = $('overlay');
+    if (ov && !ov.classList.contains('hidden')) {
+      const title = $('overlayTitle').textContent;
+      if (title.indexOf('ЛИДЕР') !== -1 || title.indexOf('LEADER') !== -1) {
+        refreshLeaderboard(currentLbType);
+      }
+    }
+  }
   function boot() {
     detectRoomCode();
     detectReferral();
@@ -5007,6 +5422,7 @@ line-height: 1;
     state.activeSkin = 'classic';
     renderMenuRank();
     bindInput();
+    applyI18n();
     resizeBoard();
     renderTray();
     requestAnimationFrame(loop);
