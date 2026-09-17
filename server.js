@@ -64,6 +64,7 @@ const playersReady = (async () => {
         if (typeof p !== 'object' || p === null) { delete players[uid]; continue; }
         migrateProfile(p, uid);
       }
+      if (typeof p.lastGameAt !== 'number') p.lastGameAt = 0;
       if (typeof p.coinsSpent !== 'number') p.coinsSpent = 0;
       if (typeof p.emoteCount !== 'number') p.emoteCount = 0;
       if (typeof p.duelWinStreak !== 'number') p.duelWinStreak = 0;
@@ -336,6 +337,7 @@ function getRank(rating) {
 }
 
 const online = new Map();
+const gameSessions = new Map();
 const waiting = [];
 const customRooms = new Map();
 const ri = (n) => Math.floor(Math.random() * n);
@@ -1289,7 +1291,26 @@ io.on('connection', (socket) => {
     p.activeTitle = titleId; p.updatedAt = Date.now(); savePlayers();
     if (cb) cb({ profile: publicProfile(userId) });
   });
-
+  // ---- SOLO GAME SESSION (античит) ----
+  socket.on('startSoloGame', async ({ userId, mode }, cb) => {
+    await playersReady;
+    if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+    const sessionId = 'gs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    gameSessions.set(sessionId, {
+      userId,
+      mode: mode || 'classic',
+      startedAt: Date.now()
+    });
+    // Чистим старые сессии раз в 100 созданий
+    if (gameSessions.size > 500) {
+      const cutoff = Date.now() - 3600 * 1000;
+      const arr = Array.from(gameSessions.entries());
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i][1].startedAt < cutoff) gameSessions.delete(arr[i][0]);
+      }
+    }
+    if (cb) cb({ sessionId });
+  });
   socket.on('getAchievements', async ({ userId }, cb) => {
     await playersReady;
     const p = players[userId];
@@ -1322,10 +1343,48 @@ io.on('connection', (socket) => {
   });
 
   // ---- SOLO (с режимами) ----
-  socket.on('submitSoloResult', async ({ userId, score, maxCombo, linesCleared, mode }, cb) => {
+  socket.on('submitSoloResult', async ({ userId, score, maxCombo, linesCleared, mode, sessionId }, cb) => {
     await playersReady;
     if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+
+    // === АНТИЧИТ ===
+    const session = gameSessions.get(sessionId);
+    if (!session) {
+      if (cb) cb({ error: 'invalid_session' });
+      return;
+    }
+    if (session.userId !== userId) {
+      gameSessions.delete(sessionId);
+      if (cb) cb({ error: 'session_mismatch' });
+      return;
+    }
+    const elapsedMs = Date.now() - session.startedAt;
+    const elapsedSec = elapsedMs / 1000;
+    gameSessions.delete(sessionId);
+
+    if (elapsedSec < 3) {
+      if (cb) cb({ error: 'too_fast' });
+      return;
+    }
+    if (elapsedSec > 3600) {
+      if (cb) cb({ error: 'session_expired' });
+      return;
+    }
+    const maxAllowed = Math.floor(elapsedSec * 100);
+    if (score > maxAllowed) {
+      console.warn(`Anti-cheat: ${userId} tried score=${score} in ${elapsedSec}s (max=${maxAllowed})`);
+      if (cb) cb({ error: 'score_too_high' });
+      return;
+    }
+
     const p = ensureProfile(userId);
+    const now = Date.now();
+    if (p.lastGameAt && now - p.lastGameAt < 5000) {
+      if (cb) cb({ error: 'too_frequent' });
+      return;
+    }
+    p.lastGameAt = now;
+    // === КОНЕЦ АНТИЧИТА ===
     mode = mode || 'classic';
     score = clamp(score, 0, MAX_SOLO_SCORE);
     maxCombo = clamp(maxCombo || 0, 0, 100);
