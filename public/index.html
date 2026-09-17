@@ -13,6 +13,7 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="apple-touch-icon" href="/icon.svg">
   <title>Block Blast Duel</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * {
       margin: 0;
@@ -2087,19 +2088,41 @@ line-height: 1;
 #emotePanel { padding: 6px 8px; gap: 4px; top: 34px; }
 #emotePanel button { width: 34px; height: 34px; font-size: 18px; }
 }
+#emotePanel button {
+animation: emoteBtnFloat 2.4s ease-in-out infinite;
+}
+#emotePanel button:nth-child(1) { animation-delay: 0s; }
+#emotePanel button:nth-child(2) { animation-delay: 0.15s; }
+#emotePanel button:nth-child(3) { animation-delay: 0.3s; }
+#emotePanel button:nth-child(4) { animation-delay: 0.45s; }
+#emotePanel button:nth-child(5) { animation-delay: 0.6s; }
+#emotePanel button:nth-child(6) { animation-delay: 0.75s; }
+@keyframes emoteBtnFloat {
+0%, 100% { transform: translateY(0); }
+50% { transform: translateY(-4px); }
+}
     
-    #emoteFloat {
-    position: fixed; pointer-events: none; z-index: 120;
-    font-size: 60px; opacity: 0;
-    transform: translate(-50%, -50%); }
-    #emoteFloat.show { animation: emotePop 1.6s ease-out forwards; }
-    @keyframes emotePop {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
-    15% { opacity: 1; transform: translate(-50%, -60%) scale(1.4); }
-    30% { opacity: 1; transform: translate(-50%, -70%) scale(1); }
-    80% { opacity: 1; transform: translate(-50%, -110%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -160%) scale(0.7); }
-    }
+#emoteFloat {
+position: fixed;
+pointer-events: none;
+z-index: 120;
+font-size: 64px;
+opacity: 0;
+transform: translate(-50%, -50%);
+filter: drop-shadow(0 6px 20px rgba(165,94,234,0.7));
+}
+#emoteFloat.show {
+animation: emotePop 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes emotePop {
+0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-45deg); }
+15% { opacity: 1; transform: translate(-50%, -60%) scale(1.6) rotate(20deg); }
+30% { opacity: 1; transform: translate(-50%, -75%) scale(1.05) rotate(-12deg); }
+45% { opacity: 1; transform: translate(-50%, -88%) scale(1.25) rotate(8deg); }
+60% { opacity: 1; transform: translate(-50%, -98%) scale(1) rotate(-5deg); }
+80% { opacity: 1; transform: translate(-50%, -120%) scale(0.95) rotate(3deg); }
+100% { opacity: 0; transform: translate(-50%, -200%) scale(0.5) rotate(25deg); }
+}
     
     /* Пульсирующая точка онлайн */
     @keyframes friendPulse {
@@ -2472,6 +2495,11 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   <script>
     (function () {
   'use strict';
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+    tg.ready();
+    tg.expand();
+    }
     const EMOJI_SETS = {
     classic: { name: 'Classic', cost: 0,
     emojis: ['\uD83D\uDE02', '\uD83D\uDC4D', '\uD83D\uDE31', '\uD83D\uDD25', '\uD83D\uDE21', '\uD83D\uDC4B'] },
