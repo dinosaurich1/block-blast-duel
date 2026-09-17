@@ -1859,6 +1859,166 @@ line-height: 1;
     background: linear-gradient(135deg, #a55eea, #1e90ff);
     color: #fff; font-weight: 800; font-size: 11px;
     font-family: inherit; cursor: pointer; flex-shrink: 0; }
+    /* ТУРНИР */
+    .tourHeader {
+    padding: 14px 16px; border-radius: 16px; margin-bottom: 12px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(165,94,234,0.12));
+    border: 1px solid rgba(255,215,0,0.35); text-align: center;
+    }
+    .tourHeader .tourTitle { font-size: 16px; font-weight: 900; color: #ffd93b; letter-spacing: 0.5px; }
+    .tourHeader .tourSub { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 3px; text-transform: uppercase;
+    letter-spacing: 1px; }
+    .tourTimer {
+    font-family: 'Courier New', monospace;
+    font-size: 32px; font-weight: 900; letter-spacing: 3px;
+    color: #fff; margin: 10px 0 4px;
+    text-shadow: 0 0 20px rgba(255,215,0,0.6);
+    }
+    .tourTimerLabel { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+    
+    .tourPrizes {
+    display: flex; gap: 6px; justify-content: center;
+    margin: 10px 0; flex-wrap: wrap;
+    }
+    .tourPrize {
+    padding: 6px 10px; border-radius: 10px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    font-size: 11px; font-weight: 800;
+    }
+    .tourPrize.gold { border-color: rgba(255,215,0,0.5); color: #ffd93b; background: rgba(255,215,0,0.08); }
+    .tourPrize.silver { border-color: rgba(192,192,192,0.5); color: #e0e0e0; }
+    .tourPrize.bronze { border-color: rgba(205,127,50,0.5); color: #cd7f32; }
+    
+    .tourPlayers {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+    margin: 10px 0;
+    }
+    .tourPlayer {
+    padding: 7px 10px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px; text-align: left;
+    display: flex; align-items: center; gap: 6px;
+    overflow: hidden; white-space: nowrap;
+    }
+    .tourPlayer .slotNum { color: rgba(255,255,255,0.4); font-weight: 700; font-size: 10px; flex-shrink: 0; }
+    .tourPlayer .playerName { font-weight: 700; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .tourPlayer.empty { opacity: 0.4; font-style: italic; }
+    .tourPlayer.me { border-color: rgba(46,213,115,0.5); background: rgba(46,213,115,0.08); }
+    
+    .tourAction {
+    width: 100%; padding: 12px; border-radius: 12px; border: none;
+    font-family: inherit; font-size: 14px; font-weight: 800;
+    cursor: pointer; margin-top: 8px;
+    background: linear-gradient(135deg, #2ed573, #1e90ff);
+    color: #fff; box-shadow: 0 6px 20px rgba(46,213,115,0.4);
+    }
+    .tourAction:active { transform: scale(0.97); }
+    .tourAction:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+    .tourAction.cancel {
+    background: rgba(255,71,87,0.15); color: #ff4757;
+    border: 1px solid rgba(255,71,87,0.4); box-shadow: none;
+    }
+    .tourAction.gold {
+    background: linear-gradient(135deg, #ffd93b, #ff8b1a);
+    box-shadow: 0 6px 20px rgba(255,215,0,0.5);
+    }
+    
+    /* Сетка */
+    .bracket { margin-top: 10px; }
+    .bracketRound { margin-bottom: 14px; }
+    .bracketRound .roundTitle {
+    font-size: 11px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: rgba(255,255,255,0.5);
+    margin-bottom: 6px;
+    }
+    .bracketMatch {
+    padding: 8px 10px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 5px; font-size: 12px;
+    }
+    .bracketMatch.playing { border-color: rgba(46,213,115,0.5); background: rgba(46,213,115,0.08); }
+    .bracketMatch.done { opacity: 0.7; }
+    .bracketMatch .matchPlayer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 0;
+    }
+    .bracketMatch .matchPlayer .mpName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bracketMatch .matchPlayer.winner { font-weight: 900; color: #2ed573; }
+    .bracketMatch .matchPlayer.winner::after { content: ' ✓'; }
+    .bracketMatch .matchPlayer.empty { color: rgba(255,255,255,0.35); font-style: italic; }
+    .bracketMatch .vs { text-align: center; font-size: 9px; color: rgba(255,255,255,0.3); margin: 1px 0; }
+    
+    /* Турнирный матч в игре */
+    #tourLabel {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    padding: 4px 12px; border-radius: 999px;
+    background: linear-gradient(135deg, #ffd93b, #ff8b1a);
+    color: #000; font-size: 11px; font-weight: 900;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    display: none; z-index: 10;
+    box-shadow: 0 4px 16px rgba(255,215,0,0.5);
+    }
+    #tourLabel.on { display: block; }
+    
+    /* Спидран таймер */
+    #speedrunTimer {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    padding: 6px 16px; border-radius: 999px;
+    background: linear-gradient(135deg, #ff4757, #ff8b1a);
+    color: #fff; font-size: 18px; font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 20px rgba(255,71,87,0.6);
+    display: none; z-index: 10;
+    }
+    #speedrunTimer.on { display: block; }
+    #speedrunTimer.warning { animation: srPulse 0.5s ease-in-out infinite; }
+    @keyframes srPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.1); } }
+    
+    /* Экран рекламы */
+    #adOverlay {
+    position: fixed; inset: 0; z-index: 500;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.95);
+    padding: 20px; gap: 16px;
+    }
+    #adOverlay.on { display: flex; }
+    #adOverlay .adBox {
+    width: 100%; max-width: 340px;
+    padding: 30px 20px; border-radius: 20px;
+    background: linear-gradient(135deg, #1a0a3e, #050010);
+    border: 2px solid rgba(165,94,234,0.5);
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(165,94,234,0.4);
+    }
+    #adOverlay .adLabel { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; }
+    #adOverlay .adBigText { font-size: 18px; font-weight: 900; margin-top: 8px; color: #fff; }
+    #adOverlay .adCountdown {
+    font-family: 'Courier New', monospace;
+    font-size: 60px; font-weight: 900; color: #ffdd59;
+    margin: 20px 0;
+    text-shadow: 0 0 30px rgba(255,221,89,0.7);
+    }
+    #adOverlay .adProgress {
+    width: 100%; height: 6px; border-radius: 999px;
+    background: rgba(255,255,255,0.1); overflow: hidden;
+    margin-bottom: 12px;
+    }
+    #adOverlay .adProgressFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #a55eea, #1e90ff);
+    transition: width 0.2s linear;
+    }
+    #adOverlay .adReward { font-size: 13px; color: #2ed573; font-weight: 700; }
+    #adOverlay .adCancel { font-size: 11px; color: rgba(255,255,255,0.4); }
+    
+    /* Кнопка "продолжить за рекламу" */
+    .btn.adBtn {
+    background: linear-gradient(135deg, #ffd93b, #ff8b1a);
+    color: #000;
+    box-shadow: 0 8px 24px rgba(255,215,0,0.5);
+    }
   </style>
 </head>
 
@@ -1921,6 +2081,8 @@ line-height: 1;
         </span>
       </div>
       <div id="topBarCenter">
+        <div id="tourLabel"></div>
+        <div id="speedrunTimer">60</div>
         <button id="exitBtn" title="Выйти">×</button>
         <div id="emoteWrap">
           <button id="emoteBtn" class="hidden" title="Эмодзи">💬</button>
@@ -1963,7 +2125,18 @@ line-height: 1;
       <button class="btn" id="nameSave">Сохранить</button>
     </div>
   </div>
-
+  <div id="adOverlay">
+    <div class="adBox">
+      <div class="adLabel">РЕКЛАМА</div>
+      <div class="adBigText" id="adBigText">Продолжить игру</div>
+      <div class="adCountdown" id="adCountdown">15</div>
+      <div class="adProgress">
+        <div class="adProgressFill" id="adProgressFill"></div>
+      </div>
+      <div class="adReward" id="adRewardText">Награда: продолжение</div>
+      <div class="adCancel">Идёт показ рекламы…</div>
+    </div>
+  </div>
   <div id="overlay" class="hidden">
     <h1 id="overlayTitle"></h1>
     <p id="overlayText"></p>
@@ -2723,6 +2896,14 @@ line-height: 1;
         ,
     lastEmoteAt: 0,
     refParam: null
+        ,
+    soloMode: 'classic',
+    speedrunTimer: null,
+    speedrunStart: 0,
+    speedrunLeft: 60,
+    isTournamentMatch: false,
+    tournament: null,
+    currentAdCallback: null
   };
 
   const particles = [];
@@ -3143,6 +3324,17 @@ line-height: 1;
     if (state.gameState !== 'playing') return;
     const fits = state.pieces.some(function(p) { return p && canPlaceAnywhere(p); });
     if (!fits) {
+      // В дзен-режиме игрок не проигрывает — просто не может ставить, но игра продолжается до явного выхода
+      // Впрочем для дзен — пропускаем оставшиеся фигуры
+      if (state.mode === 'solo' && state.soloMode === 'zen') {
+        // Пропускаем текущую тройку
+        state.seqIndex++;
+        loadPiecesFromSequence();
+        renderTray();
+        needsRedraw = true;
+        setTimeout(checkGameOver, 300);
+        return;
+      }
       state.gameState = 'over';
       if (state.mode === 'duel' && state.socket && state.socket.connected) {
         state.socket.emit('gameOver');
@@ -3404,9 +3596,14 @@ line-height: 1;
       }
     }
     html += '</div>';
-
+    
     showOverlay('🎨 МАГАЗИН', '', [
-      { text: 'Закрыть', action: hideOverlay, secondary: true }
+    { text: '📺 Скин на 24ч', action: function() {
+    showFakeAd(15, 'Бесплатный скин на 24 часа', function() {
+    showToast('🎁 Скин активирован на 24 часа (заглушка)');
+    }, function() {});
+    }},
+    { text: 'Закрыть', action: hideOverlay, secondary: true }
     ], false, '', html);
 
     setTimeout(function() {
@@ -3739,7 +3936,16 @@ line-height: 1;
     }
     return seq;
   }
-  function startSolo() {
+  function startSolo(mode) {
+    mode = mode || 'classic';
+    state.soloMode = mode;
+
+    // Проверка пазла
+    if (mode === 'puzzle') {
+      startPuzzle();
+      return;
+    }
+
     state.mode = 'solo';
     state.sequence = genLocalSequence(500); state.seqIndex = 0;
     state.board = emptyBoard();
@@ -3747,38 +3953,150 @@ line-height: 1;
     state.combo = 0; state.flashCells = []; state.screenShake = 0;
     state.totalLinesCleared = 0;
     state.gameState = 'playing';
+    state.isTournamentMatch = false;
+    $('tourLabel').classList.remove('on');
     loadPiecesFromSequence(); updateScoreUI();
     $('oppPill').classList.add('hidden');
     setEmoteBtnVisible(false);
     showGame(); hideOverlay(); applyBackground(); resizeBoard();
+
+    if (mode === 'speedrun') {
+      startSpeedrunTimer(60);
+    } else {
+      stopSpeedrunTimer();
+    }
+
     requestAnimationFrame(function() { renderTray(); updateBoardRect(); needsRedraw = true; });
   }
+
+  function startSpeedrunTimer(seconds) {
+    stopSpeedrunTimer();
+    state.speedrunLeft = seconds;
+    state.speedrunStart = Date.now();
+    const el = $('speedrunTimer');
+    el.classList.add('on');
+    el.classList.remove('warning');
+    el.textContent = seconds;
+    state.speedrunTimer = setInterval(function() {
+      const elapsed = (Date.now() - state.speedrunStart) / 1000;
+      const left = Math.max(0, seconds - elapsed);
+      state.speedrunLeft = left;
+      el.textContent = Math.ceil(left);
+      if (left <= 10) el.classList.add('warning');
+      if (left <= 0) {
+        stopSpeedrunTimer();
+        if (state.gameState === 'playing') {
+          state.gameState = 'over';
+          endSoloGame();
+        }
+      }
+    }, 100);
+  }
+
+  function stopSpeedrunTimer() {
+    if (state.speedrunTimer) {
+      clearInterval(state.speedrunTimer);
+      state.speedrunTimer = null;
+    }
+    const el = $('speedrunTimer');
+    if (el) { el.classList.remove('on'); el.classList.remove('warning'); }
+  }
+
+  function startPuzzle() {
+    if (!state.socket || !state.socket.connected) {
+      showToast('Нет связи');
+      return;
+    }
+    // Проверка: играли ли сегодня
+    if (state.profile && state.profile.puzzleLastDate) {
+      const d = new Date();
+      const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      if (state.profile.puzzleLastDate === today) {
+        showToast('Пазл дня уже пройден');
+        return;
+      }
+    }
+    showOverlay('ЗАГРУЗКА…', 'Готовим пазл дня', null, true);
+    fetch('/api/puzzle', { cache: 'no-store' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        hideOverlay();
+        if (!data || !data.sequence) {
+          showToast('Не удалось загрузить пазл');
+          return;
+        }
+        state.mode = 'solo';
+        state.soloMode = 'puzzle';
+        state.sequence = data.sequence;
+        state.seqIndex = 0;
+        state.board = emptyBoard();
+        state.myScore = 0; state.oppScore = 0;
+        state.combo = 0; state.flashCells = []; state.screenShake = 0;
+        state.totalLinesCleared = 0;
+        state.gameState = 'playing';
+        state.isTournamentMatch = false;
+        $('tourLabel').classList.remove('on');
+        loadPiecesFromSequence(); updateScoreUI();
+        $('oppPill').classList.add('hidden');
+        setEmoteBtnVisible(false);
+        showGame(); hideOverlay(); applyBackground(); resizeBoard();
+        stopSpeedrunTimer();
+        requestAnimationFrame(function() { renderTray(); updateBoardRect(); needsRedraw = true; });
+      })
+      .catch(function() {
+        hideOverlay();
+        showToast('Не удалось загрузить пазл');
+      });
+  }
   function endSoloGame() {
+    stopSpeedrunTimer();
     if (state.myScore >= 500) spawnConfetti(80);
     const finishUI = function(profile, gain, coinsGain, rankUpInfo, offline) {
-      const newRank = getRank(profile ? profile.rating : 0);
-      const rewardHTML = '<div class="rewardRow">'
-        + '<div class="rewardBox"><div class="gain' + (gain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + gain) + '</div><div class="label">рейтинга</div></div>'
-        + '<div class="rewardBox"><div class="gain' + (coinsGain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + coinsGain) + '</div><div class="label">🪙 монет</div></div>'
-        + '</div>';
-      setTimeout(function() {
-        showOverlay(
-          rankUpInfo ? '🏆 НОВЫЙ РАНГ!' : 'ИГРА ОКОНЧЕНА',
-          'Счёт: <b>' + state.myScore + '</b><br>Рейтинг: <b>' + (profile ? profile.rating : 0) + '</b> · ' + newRank.icon + ' ' + newRank.name
-          + (offline ? '<br><small style="color:#ffa502">Офлайн — не сохранено</small>' : ''),
-          [{ text: 'Играть снова', action: startSolo }, { text: 'В меню', action: showMenu, secondary: true }],
-          false, rewardHTML
-        );
-      }, 600);
+    const newRank = getRank(profile ? profile.rating : 0);
+    const rewardHTML = '<div class="rewardRow">'
+      + '<div class="rewardBox">
+        <div class="gain' + (gain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + gain) + '</div>
+        <div class="label">'рейтинга'</div>
+      </div>'
+      + '<div class="rewardBox">
+        <div class="gain' + (coinsGain > 0 ? '' : ' neg') + '">' + (offline ? '0' : '+' + coinsGain) + '</div>
+        <div class="label">'🪙 монет'</div>
+      </div>'
+      + '</div>';
+    const modeLabel = state.soloMode === 'speedrun' ? 'СПИДРАН' : state.soloMode === 'zen' ? 'ДЗЕН' : state.soloMode ===
+    'puzzle' ? 'ПАЗЛ ДНЯ' : 'ИГРА ОКОНЧЕНА';
+    setTimeout(function() {
+    const btns = [
+    { text: '📺 ×2 монет', action: function() {
+    showFakeAd(15, '×2 монет', function() {
+    if (state.socket && state.socket.connected) {
+    // Начисляем ещё столько же (не отправляем на сервер, просто локально — или можно отправить заново)
+    showToast('+🪙' + coinsGain + ' бонус');
+    }
+    }, function() {});
+    }},
+    { text: 'Играть снова', action: function() { startSolo(state.soloMode); } },
+    { text: 'В меню', action: showMenu, secondary: true }
+    ];
+    showOverlay(
+    rankUpInfo ? '🏆 НОВЫЙ РАНГ!' : modeLabel,
+    'Счёт: <b>' + state.myScore + '</b><br>Рейтинг: <b>' + (profile ? profile.rating : 0) + '</b> · ' + newRank.icon + ' ' +
+    newRank.name
+    + (offline ? '<br><small style="color:#ffa502">Офлайн — не сохранено</small>' : ''),
+    btns,
+    false, rewardHTML
+    );
+    }, 600);
     };
     if (state.socket && state.socket.connected) {
       let done = false;
       const t = setTimeout(function() { if (done) return; done = true; finishUI(state.profile, 0, 0, null, true); }, 5000);
       state.socket.emit('submitSoloResult', {
-        userId: state.userId,
-        score: state.myScore,
-        maxCombo: state.combo || 0,
-        linesCleared: state.totalLinesCleared || 0
+      userId: state.userId,
+      score: state.myScore,
+      maxCombo: state.combo || 0,
+      linesCleared: state.totalLinesCleared || 0,
+      mode: state.soloMode || 'classic'
       }, function(res) {
         if (done) return; done = true;
         clearTimeout(t);
@@ -3873,6 +4191,40 @@ line-height: 1;
       Audio.win();
     });
     state.socket.on('questsUpdated', function() { updateQuestsBadge(); });
+            state.socket.on('tournamentUpdated', function(d) {
+            if (d && d.tournament) {
+            state.tournament = d.tournament;
+            if ($('overlayTitle').textContent.indexOf('ТУРНИР') !== -1) {
+            renderTournamentOverlay();
+            }
+            }
+            });
+            state.socket.on('tournamentStarted', function(d) {
+            if (d && d.tournament) state.tournament = d.tournament;
+            showToast('🏆 Турнир начался!');
+            Audio.win();
+            if ($('overlayTitle').textContent.indexOf('ТУРНИР') !== -1) {
+            renderTournamentOverlay();
+            }
+            });
+            state.socket.on('tournamentFinished', function(d) {
+            if (d && d.tournament) state.tournament = d.tournament;
+            showToast('🏆 Турнир завершён!');
+            if ($('overlayTitle').textContent.indexOf('ТУРНИР') !== -1) {
+            renderTournamentOverlay();
+            }
+            });
+            state.socket.on('tournamentCancelled', function(d) {
+            showToast('Турнир отменён, взнос возвращён');
+            state.socket.emit('tournamentStatus', { userId: state.userId }, function(res) {
+            if (res && res.tournament) state.tournament = res.tournament;
+            if ($('overlayTitle').textContent.indexOf('ТУРНИР') !== -1) renderTournamentOverlay();
+            });
+            });
+            state.socket.on('championReward', function(d) {
+            showToast('🏆 Чемпионская награда получена!');
+            Audio.win();
+            });
         state.socket.on('oppEmote', function(d) {
         if (d && d.emoji) showEmoteFloat(d.emoji);
         });
@@ -3889,10 +4241,18 @@ line-height: 1;
     });
 
     state.socket.on('matchFound', function(d) {
-      state.sequence = d.sequence || [];
-      state.seqIndex = 0; state.playerIndex = d.playerIndex || 0;
-      state.oppName = d.oppName || 'Соперник';
-      state.oppAvatar = d.oppAvatar || 0;
+    state.sequence = d.sequence || [];
+    state.seqIndex = 0; state.playerIndex = d.playerIndex || 0;
+    state.oppName = d.oppName || 'Соперник';
+    state.oppAvatar = d.oppAvatar || 0;
+    state.isTournamentMatch = d.matchType === 'tournament';
+    state.soloMode = 'classic';
+    if (state.isTournamentMatch) {
+    $('tourLabel').textContent = '🏆 ' + (d.tournamentRoundLabel || 'Турнир');
+    $('tourLabel').classList.add('on');
+    } else {
+    $('tourLabel').classList.remove('on');
+    }
       state.board = emptyBoard();
       state.myScore = 0; state.oppScore = 0;
       state.combo = 0; state.flashCells = []; state.screenShake = 0;
@@ -3941,6 +4301,8 @@ line-height: 1;
   }
 
   function startDuelMatchmaking() {
+    $('tourLabel').classList.remove('on');
+    state.isTournamentMatch = false;
     showGame(); initSocket();
     state.mode = 'duel';
     if (!state.nameManuallySet) setTimeout(function() { if (!state.nameManuallySet && state.mode === 'duel') openNameInput(); }, 800);
@@ -3956,6 +4318,16 @@ line-height: 1;
   }
 
   function showEndScreen(iWon, oppLeft, ratingDelta, newRating, coinsGained) {
+        // Турнирный матч
+        if (state.isTournamentMatch) {
+        state.isTournamentMatch = false;
+        $('tourLabel').classList.remove('on');
+        const t = state.tournament;
+        if (t && t.bracket) {
+        setTimeout(function() { showTournamentOverlay(); }, 300);
+        }
+        return;
+        }
         setEmoteBtnVisible(false);
     let rewardHTML = '';
     const hasRating = typeof ratingDelta === 'number' && ratingDelta !== 0;
@@ -3977,11 +4349,27 @@ line-height: 1;
          { text: 'В меню', action: function() { if (state.socket) state.socket.emit('leaveGame'); showMenu(); }, secondary: true }],
         false, rewardHTML);
     } else {
+      const canAdContinue = (state.mode === 'duel');
+      const btns = [];
+      if (canAdContinue) {
+      btns.push({ text: '📺 Продолжить', action: function() {
+      showFakeAd(15, 'Продолжение игры', function() {
+      // Возобновляем игру — снимаем game over
+      state.gameState = 'playing';
+      hideOverlay();
+      if (state.socket) state.socket.emit('progress', { score: state.myScore });
+      }, function() {
+      showToast('Реклама пропущена');
+      });
+      }});
+      }
+      btns.push({ text: 'Играть снова', action: restartDuel });
+      btns.push({ text: 'В меню', action: function() { if (state.socket) state.socket.emit('leaveGame'); showMenu(); },
+      secondary: true });
+      
       showOverlay('ПОРАЖЕНИЕ',
-        'Некуда ставить фигуры.<br>Ваш счёт: <b>' + state.myScore + '</b>' + ratingLine,
-        [{ text: 'Играть снова', action: restartDuel },
-         { text: 'В меню', action: function() { if (state.socket) state.socket.emit('leaveGame'); showMenu(); }, secondary: true }],
-        false, rewardHTML);
+      'Некуда ставить фигуры.<br>Ваш счёт: <b>' + state.myScore + '</b>' + ratingLine,
+      btns, false, rewardHTML);
     }
   }
 
@@ -4139,29 +4527,234 @@ line-height: 1;
     if (count > 0) { badge.textContent = count; badge.style.display = ''; }
     else badge.style.display = 'none';
   }
+    // ============ ТУРНИР ============
+    function formatCountdown(ms) {
+    if (ms <= 0) return '00:00:00' ; const totalSec=Math.floor(ms / 1000); const d=Math.floor(totalSec / 86400); const
+      h=Math.floor((totalSec % 86400) / 3600); const m=Math.floor((totalSec % 3600) / 60); const s=totalSec % 60; if (d> 0)
+      return d + 'д ' + h + 'ч ' + m + 'м';
+      return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+      }
+    
+      function getTournamentRoundLabel(roundKey) {
+      if (roundKey === 'round1') return '¼ финала';
+      if (roundKey === 'round2') return '½ финала';
+      if (roundKey === 'round3') return 'Финал';
+      return '';
+      }
+    
+      function getPlayerNameById(uid) {
+      if (!uid) return null;
+      if (state.tournament && state.tournament.players) {
+      const p = state.tournament.players.find(function(x) { return x.userId === uid; });
+      if (p) return p.name;
+      }
+      if (uid === state.userId && state.profile) return state.profile.name;
+      return 'Игрок-' + uid.slice(-4).toUpperCase();
+      }
+    
+      function showTournamentOverlay() {
+      if (!state.socket || !state.socket.connected) {
+      showToast('Нет связи');
+      return;
+      }
+      showOverlay('🏆 ТУРНИР НЕДЕЛИ', '', [
+      { text: 'Назад', action: showMenu, secondary: true }
+      ], true);
+      state.socket.emit('tournamentStatus', { userId: state.userId }, function(res) {
+      $('spinner').style.display = 'none';
+      if (res && res.tournament) {
+      state.tournament = res.tournament;
+      }
+      renderTournamentOverlay();
+      });
+      }
+    
+      function renderTournamentOverlay() {
+      const t = state.tournament;
+      if (!t) {
+      $('overlayCustom').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.5);">Турнир
+        недоступен</div>';
+      return;
+      }
+    
+      const isRegistered = t.players.some(function(x) { return x.userId === state.userId; });
+      const coins = (state.profile && state.profile.coins) || 0;
+      const now = Date.now();
+      const msToStart = Math.max(0, t.startTime - now);
+    
+      let html = '<div style="max-height:65vh;overflow-y:auto;width:100%;">';
+    
+        // Шапка
+        html += '<div class="tourHeader">'
+          + '<div class="tourTitle">🏆 Турнир недели</div>'
+          + '<div class="tourSub">Воскресенье · 18:00 МСК</div>';
+          if (t.state === 'registration') {
+          html += '<div class="tourTimer">' + formatCountdown(msToStart) + '</div>'
+          + '<div class="tourTimerLabel">до старта</div>';
+          } else if (t.state === 'running') {
+          html += '<div class="tourTimer" style="color:#2ed573;">ИДЁТ</div>'
+          + '<div class="tourTimerLabel">турнир в процессе</div>';
+          } else if (t.state === 'finished') {
+          html += '<div class="tourTimer" style="color:#ffd93b;">ЗАВЕРШЁН</div>';
+          } else if (t.state === 'cancelled') {
+          html += '<div class="tourTimer" style="color:#ff4757;">ОТМЕНЁН</div>'
+          + '<div class="tourTimerLabel">мало игроков</div>';
+          }
+          html += '</div>';
+    
+        // Призы
+        html += '<div class="tourPrizes">'
+          + '<div class="tourPrize gold">🥇 ' + t.prize1 + '</div>'
+          + '<div class="tourPrize silver">🥈 ' + t.prize2 + '</div>'
+          + '<div class="tourPrize bronze">🥉 ' + t.prize3 + '</div>'
+          + '</div>';
+    
+        // Победитель
+        if (t.state === 'finished' && t.winner) {
+        html += '<div
+          style="text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,140,0,0.15));border:1px solid rgba(255,215,0,0.5);margin-bottom:10px;">
+          '
+          + '<div style="font-size:28px;">👑</div>'
+          + '<div style="font-size:14px;font-weight:900;color:#ffd93b;margin-top:4px;">' +
+            escapeHtml(getPlayerNameById(t.winner)) + '</div>'
+          + '<div style="font-size:11px;color:rgba(255,255,255,0.6);">победитель турнира</div>'
+          + '</div>';
+        }
+    
+        // Участники
+        html += '<div class="sectionTitle" style="margin-top:12px;">Участники (' + t.players.length + '/' + 8 + ')</div>';
+        html += '<div class="tourPlayers">';
+          const registeredIds = t.players.map(function(p) { return p.userId; });
+          for (let i = 0; i < 8; i++) { const p=t.players[i]; if (p) { const isMe=p.userId===state.userId; html
+            +='<div class="tourPlayer' + (isMe ? ' me' : '' ) + '">' + '<span class="slotNum">' + (i + 1) + '.</span>'
+            + '<span class="playerName">' + escapeHtml(p.name) + '</span>' + '</div>' ; } else { html
+            +='<div class="tourPlayer empty">' + '<span class="slotNum">' + (i + 1) + '.</span>'
+            + '<span class="playerName">свободно</span>' + '</div>' ; } } html +='</div>' ; // Сетка
+             if (t.bracket) { html
+            +='<div class="sectionTitle" style="margin-top:12px;">Сетка</div>' ; html +='<div class="bracket">' ; const
+            rounds=[ { key: 'round1' , label: '¼ финала' }, { key: 'round2' , label: '½ финала' }, { key: 'round3' ,
+            label: 'Финал' } ]; for (const r of rounds) { const matches=t.bracket[r.key]; if (!matches ||
+            matches.length===0) continue; html +='<div class="bracketRound">' + '<div class="roundTitle">' + r.label
+            + '</div>' ; for (const m of matches) { const n1=getPlayerNameById(m.p1); const n2=getPlayerNameById(m.p2);
+            const wClass=m.winner===m.p1 ? ' winner' : '' ; const wClass2=m.winner===m.p2 ? ' winner' : '' ; html
+            +='<div class="bracketMatch ' + m.status + '">' + '<div class="matchPlayer' + wClass + (n1 ? '' : ' empty' )
+            + '"><span class="mpName">' + (n1 ? escapeHtml(n1) : '—' ) + '</span></div>' + '<div class="vs">vs</div>'
+            + '<div class="matchPlayer' + wClass2 + (n2 ? '' : ' empty' ) + '"><span class="mpName">' + (n2 ? escapeHtml(n2)
+            : '—' ) + '</span></div>' + '</div>' ; } html +='</div>' ; } html +='</div>' ; } // Кнопка действия
+             if (t.state==='registration' ) { if (isRegistered) { html
+            +='<button class="tourAction cancel" id="tourUnreg">Отменить запись (+' + t.entryFee + ' 🪙)</button>' ; } else
+            if (t.players.length>= 8) {
+            html += '<button class="tourAction" disabled>Мест нет (8/8)</button>';
+            } else if (coins < t.entryFee) { html +='<button class="tourAction" disabled>Нужно ' + t.entryFee
+              + ' 🪙 (у вас ' + coins + ')</button>' ; } else { html
+              +='<button class="tourAction gold" id="tourReg">Записаться · ' + t.entryFee + ' 🪙</button>' ; } } else if
+              (t.state==='running' ) { if (isRegistered) { html
+              +='<div style="text-align:center;padding:10px;font-size:12px;color:rgba(255,255,255,0.6);">Вы участвуете. Ждём соперника…</div>'
+              ; } } html +='</div>' ; $('overlayCustom').innerHTML=html; // Обработчики кнопок
+               const btnReg=$('tourReg');
+              const btnUnreg=$('tourUnreg'); if (btnReg) { btnReg.onclick=function() { Audio.click(); btnReg.disabled=true;
+              btnReg.textContent='Записываемся…' ; state.socket.emit('tournamentRegister', { userId: state.userId },
+              function(res) { if (res && res.error) { const msgs={ tournament_full: 'Мест нет' ,
+              already_registered: 'Вы уже записаны' , not_enough_coins: 'Недостаточно монет' ,
+              registration_closed: 'Регистрация закрыта' }; showToast(msgs[res.error] || 'Ошибка' ); } else { if
+              (res.profile) { state.profile=res.profile; saveLocalMeta(); renderMenuRank(); } if (res.tournament)
+              state.tournament=res.tournament; Audio.questDone(); showToast('✅ Запись подтверждена'); }
+              renderTournamentOverlay(); }); }; } if (btnUnreg) { btnUnreg.onclick=function() { Audio.click();
+              btnUnreg.disabled=true; state.socket.emit('tournamentUnregister', { userId: state.userId }, function(res) { if
+              (res && res.error) { showToast('Ошибка: ' + res.error);
+              } else {
+                if (res.profile) {
+                  state.profile = res.profile;
+                  saveLocalMeta(); renderMenuRank();
+                }
+                if (res.tournament) state.tournament = res.tournament;
+                showToast(' Запись отменена'); } renderTournamentOverlay(); }); }; } // Запускаем локальный апдейт таймера, пока окно открыто
+                 if (t.state==='registration' ) { clearTimeout(window.__tourTimer); const tick=function() {
+              if ($('overlay').classList.contains('hidden')) return; if (!state.tournament || state.tournament.state
+              !=='registration' ) return; const ms=Math.max(0, state.tournament.startTime - Date.now()); const
+              el=document.querySelector('.tourTimer'); if (el) el.textContent=formatCountdown(ms); if (ms <=0) {
+              state.socket.emit('tournamentStatus', { userId: state.userId }, function(res) { if (res && res.tournament)
+              state.tournament=res.tournament; renderTournamentOverlay(); }); return; } window.__tourTimer=setTimeout(tick,
+              1000); }; window.__tourTimer=setTimeout(tick, 1000); } }
+    // ============ ЗАГЛУШКА РЕКЛАМЫ ============
+  function showFakeAd(seconds, rewardText, onReward, onCancel) {
+    seconds = seconds || 15;
+    const overlay = $('adOverlay');
+    const countdown = $('adCountdown');
+    const progress = $('adProgressFill');
+    const rewardEl = $('adRewardText');
+    const bigText = $('adBigText');
 
+    bigText.textContent = 'Демо-реклама';
+    rewardEl.textContent = rewardText || 'Награда';
+    countdown.textContent = seconds;
+    progress.style.width = '0%';
+    overlay.classList.add('on');
+
+    const start = Date.now();
+    const total = seconds * 1000;
+    let cancelled = false;
+
+    const tick = setInterval(function() {
+      const elapsed = Date.now() - start;
+      const left = Math.max(0, seconds - Math.floor(elapsed / 1000));
+      countdown.textContent = left;
+      progress.style.width = Math.min(100, (elapsed / total) * 100) + '%';
+      if (elapsed >= total) {
+        clearInterval(tick);
+        overlay.classList.remove('on');
+        if (!cancelled) {
+          Audio.questDone();
+          if (typeof onReward === 'function') onReward();
+        }
+      }
+    }, 200);
+
+    // Клик вне → отмена (только если ещё не закончилось)
+    overlay.onclick = function(e) {
+      if (e.target === overlay) {
+        const elapsed = Date.now() - start;
+        if (elapsed < total) {
+          clearInterval(tick);
+          cancelled = true;
+          overlay.classList.remove('on');
+          if (typeof onCancel === 'function') onCancel();
+        }
+      }
+    };
+  }
   // ============ ГЛАВНЫЕ ПОДМЕНЮ ============
   function showPlayMenu() {
-    showOverlay('🎮 ИГРАТЬ', '', [
-      { text: 'Назад', action: showMenu, secondary: true }
-    ], false);
-    $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
-      + '<button class="submenuBtn online" id="smOnline">'
-      +   '<span class="icon">🌐</span>'
-      +   '<span class="text">Онлайн-дуэль<small>Случайный соперник</small></span>'
-      + '</button>'
-      + '<button class="submenuBtn invite" id="smInvite">'
-      +   '<span class="icon">🔗</span>'
-      +   '<span class="text">Пригласить друга<small>Играть по ссылке</small></span>'
-      + '</button>'
-      + '<button class="submenuBtn solo" id="smSolo">'
-      +   '<span class="icon">🎯</span>'
-      +   '<span class="text">Одиночная игра<small>Рейтинг за рекорд</small></span>'
-      + '</button>'
-      + '</div>';
-    $('smOnline').onclick = function() { hideOverlay(); startDuelMatchmaking(); };
-    $('smInvite').onclick = function() { hideOverlay(); startInviteFlow(); };
-    $('smSolo').onclick = function() { hideOverlay(); startSolo(); };
+  showOverlay('🎮 ИГРАТЬ', '', [
+  { text: 'Назад', action: showMenu, secondary: true }
+  ], false);
+  $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
+    + '<button class="submenuBtn online" id="smOnline">'
+        +   '<span class="icon">🌐</span>'
+        +   '<span class="text">Онлайн-дуэль<small>Случайный соперник</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn solo" id="smSolo">'
+        +   '<span class="icon">🎯</span>'
+        +   '<span class="text">Классика<small>Рейтинг за рекорд</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn" id="smSpeed" style="border-color:rgba(255,71,87,0.5);">'
+        +   '<span class="icon">⏱️</span>'
+        +   '<span class="text">Спидран<small>60 секунд · монеты ×1.2</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn" id="smZen" style="border-color:rgba(46,213,115,0.5);">'
+        +   '<span class="icon">🧘</span>'
+        +   '<span class="text">Дзен<small>Без проигрыша · только монеты</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn" id="smPuzzle" style="border-color:rgba(255,215,0,0.5);">'
+        +   '<span class="icon">🧩</span>'
+        +   '<span class="text">Пазл дня<small>Одно поле для всех · раз в день</small></span>'
+        + '</button>'
+    + '</div>';
+  $('smOnline').onclick = function() { hideOverlay(); startDuelMatchmaking(); };
+  $('smSolo').onclick = function() { hideOverlay(); startSolo('classic'); };
+  $('smSpeed').onclick = function() { hideOverlay(); startSolo('speedrun'); };
+  $('smZen').onclick = function() { hideOverlay(); startSolo('zen'); };
+  $('smPuzzle').onclick = function() { hideOverlay(); startPuzzle(); };
   }
 
   function showCommunityMenu() {
@@ -4183,21 +4776,26 @@ line-height: 1;
   }
 
   function showProgressMenu() {
-    showOverlay('🏆 ПРОГРЕСС', '', [
-      { text: 'Назад', action: showMenu, secondary: true }
-    ], false);
-    $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
-      + '<button class="submenuBtn" id="smQuests" style="border-color:rgba(46,213,115,0.4);">'
-      +   '<span class="icon">📅</span>'
-      +   '<span class="text">Квесты дня<small>3 задания на сегодня</small></span>'
-      + '</button>'
-      + '<button class="submenuBtn" id="smAch" style="border-color:rgba(255,215,0,0.4);">'
-      +   '<span class="icon">🏅</span>'
-      +   '<span class="text">Достижения<small>Прогресс и награды</small></span>'
-      + '</button>'
-      + '</div>';
-    $('smQuests').onclick = function() { Audio.click(); showQuestsOverlay(); };
-    $('smAch').onclick = function() { Audio.click(); showAchievementsOverlay(); };
+  showOverlay('🏆 ПРОГРЕСС', '', [
+  { text: 'Назад', action: showMenu, secondary: true }
+  ], false);
+  $('overlayCustom').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
+    + '<button class="submenuBtn" id="smTour" style="border-color:rgba(255,215,0,0.5);">'
+        +   '<span class="icon">🏆</span>'
+        +   '<span class="text">Турнир недели<small>Воскресенье 18:00 МСК · взнос 100 🪙</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn" id="smQuests" style="border-color:rgba(46,213,115,0.4);">'
+        +   '<span class="icon">📅</span>'
+        +   '<span class="text">Квесты дня<small>3 задания на сегодня</small></span>'
+        + '</button>'
+    + '<button class="submenuBtn" id="smAch" style="border-color:rgba(255,215,0,0.4);">'
+        +   '<span class="icon">🏅</span>'
+        +   '<span class="text">Достижения<small>Прогресс и награды</small></span>'
+        + '</button>'
+    + '</div>';
+  $('smTour').onclick = function() { Audio.click(); showTournamentOverlay(); };
+  $('smQuests').onclick = function() { Audio.click(); showQuestsOverlay(); };
+  $('smAch').onclick = function() { Audio.click(); showAchievementsOverlay(); };
   }
     // ============ ЧАТ (эмодзи) ============
   function showEmoteFloat(emoji) {
