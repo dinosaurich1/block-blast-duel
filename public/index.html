@@ -3287,6 +3287,7 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     refParam: null
         ,
     soloMode: 'classic',
+    soloSessionId: null,
     speedrunTimer: null,
     speedrunStart: 0,
     speedrunLeft: 60,
@@ -3882,160 +3883,153 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   // ============ SHOP ============
   let currentShopTab = 'skins';
   function showShopOverlay(tab) {
-    tab = tab || currentShopTab;
-    currentShopTab = tab;
-    const p = state.profile || {};
-    const owned = Array.isArray(p.skins) ? p.skins : ['classic'];
-    const active = p.activeSkin || 'classic';
-    const coins = p.coins || 0;
-    const ownedBg = Array.isArray(p.backgrounds) ? p.backgrounds : ['default'];
-    const activeBg = p.activeBackground || 'default';
-    const ownedAv = Array.isArray(p.avatars) ? p.avatars : [0,1];
-    const activeAv = typeof p.activeAvatar === 'number' ? p.activeAvatar : 0;
-    const ownedTitles = Array.isArray(p.titles) ? p.titles : ['rookie'];
-    const activeTitle = p.activeTitle || 'rookie';
-    const activeSeasonal = (p.seasonal && p.seasonal.skins) || [];
-
-    let html = '<div id="shopHeader" style="margin-bottom:10px;">🪙 ' + coins + ' монет</div>';
-    html += '<div class="shopTabs">'
-      + '<button class="shopTab' + (tab === 'skins' ? ' active' : '') + '" data-tab="skins">Скины</button>'
-      + '<button class="shopTab' + (tab === 'backgrounds' ? ' active' : '') + '" data-tab="backgrounds">Фоны</button>'
-      + '<button class="shopTab' + (tab === 'avatars' ? ' active' : '') + '" data-tab="avatars">Аватарки</button>'
-      + '<button class="shopTab' + (tab === 'titles' ? ' active' : '') + '" data-tab="titles">Титулы</button>'
-      + '</div>';
-    html += '<div style="max-height:50vh;overflow-y:auto;">';
-
+  tab = tab || currentShopTab;
+  currentShopTab = tab;
+  const p = state.profile || {};
+  const owned = Array.isArray(p.skins) ? p.skins : ['classic'];
+  const active = p.activeSkin || 'classic';
+  const coins = p.coins || 0;
+  const ownedBg = Array.isArray(p.backgrounds) ? p.backgrounds : ['default'];
+  const activeBg = p.activeBackground || 'default';
+  const ownedAv = Array.isArray(p.avatars) ? p.avatars : [0,1];
+  const activeAv = typeof p.activeAvatar === 'number' ? p.activeAvatar : 0;
+  const ownedTitles = Array.isArray(p.titles) ? p.titles : ['rookie'];
+  const activeTitle = p.activeTitle || 'rookie';
+  const activeSeasonal = (p.seasonal && p.seasonal.skins) || [];
+  
+  let html = '<div id="shopHeader" style="margin-bottom:10px;">🪙 ' + coins + ' ' + t('shopCoins') + '</div>';
+  html += '<div class="shopTabs">';
+    html +=
+    '<button class="shopTab' + (tab === 'skins' ? ' active' : '') + '" data-tab="skins">' + t('shopTabSkins') + '</button>';
+    html +=
+    '<button class="shopTab' + (tab === 'backgrounds' ? ' active' : '') + '" data-tab="backgrounds">' + t('shopTabBackgrounds') + '</button>';
+    html +=
+    '<button class="shopTab' + (tab === 'avatars' ? ' active' : '') + '" data-tab="avatars">' + t('shopTabAvatars') + '</button>';
+    html +=
+    '<button class="shopTab' + (tab === 'titles' ? ' active' : '') + '" data-tab="titles">' + t('shopTabTitles') + '</button>';
+    html += '</div>';
+  html += '<div style="max-height:50vh;overflow-y:auto;">';
+  
     if (tab === 'skins') {
-      html += '<div class="shopGrid">';
+    html += '<div class="shopGrid">';
       for (const skin of SKINS_LIST) {
-        if (skin.seasonal && activeSeasonal.indexOf(skin.id) === -1 && owned.indexOf(skin.id) === -1) continue;
-        const isOwned = owned.indexOf(skin.id) !== -1;
-        const isActive = active === skin.id;
-        const isChamp = !!skin.champion;
-        const canAfford = coins >= skin.cost;
-        let label, cls, attr;
-        if (isActive) { label = '✓ Активен'; cls = 'active-btn'; attr = 'disabled'; }
-        else if (isOwned) { label = 'Надеть'; cls = 'equip'; attr = ''; }
-        else if (isChamp) { label = '🏆 Только за турнир'; cls = 'champion-locked'; attr = 'disabled'; }
-        else if (canAfford) { label = 'Купить'; cls = 'buy'; attr = ''; }
-        else { label = 'Не хватает'; cls = 'disabled'; attr = 'disabled'; }
-        const badge = isChamp ? '<span class="champBadge">🏆</span>' : '';
-        const cardCls = 'shopCard' + (isOwned ? ' owned' : '') + (isActive ? ' active' : '') + (isChamp ? ' champion' : '') + (isChamp && !isOwned ? ' locked' : '');
-        html += '<div class="' + cardCls + '">'
-          + '<canvas class="skinPreview" width="60" height="60" data-skin="' + skin.id + '"></canvas>'
-          + '<div class="skinName">' + skin.name + badge + '</div>'
-          + '<div class="skinDesc">' + skin.desc + '</div>'
-          + '<div class="skinPrice">' + (isChamp ? 'Сезон турнира' : (skin.cost === 0 ? 'Бесплатно' : '🪙 ' + skin.cost)) + '</div>'
-          + '<button class="skinAction ' + cls + '" data-skin="' + skin.id + '" data-action="' + (isActive ? 'active' : isOwned ? 'equip' : 'buy') + '" ' + attr + '>' + label + '</button>'
-          + '</div>';
+      if (skin.seasonal && activeSeasonal.indexOf(skin.id) === -1 && owned.indexOf(skin.id) === -1) continue;
+      const isOwned = owned.indexOf(skin.id) !== -1;
+      const isActive = active === skin.id;
+      const isChamp = !!skin.champion;
+      const canAfford = coins >= skin.cost;
+      let label, cls, attr;
+      if (isActive) { label = '✓ ' + t('shopActive'); cls = 'active-btn'; attr = 'disabled'; }
+      else if (isOwned) { label = t('shopEquip'); cls = 'equip'; attr = ''; }
+      else if (isChamp) { label = '🏆 ' + t('shopChampion'); cls = 'champion-locked'; attr = 'disabled'; }
+      else if (canAfford) { label = t('shopBuy'); cls = 'buy'; attr = ''; }
+      else { label = t('shopNotEnough'); cls = 'disabled'; attr = 'disabled'; }
+      const badge = isChamp ? '<span class="champBadge">🏆</span>' : '';
+      const cardCls = 'shopCard' + (isOwned ? ' owned' : '') + (isActive ? ' active' : '') + (isChamp ? ' champion' : '')
+      + (isChamp && !isOwned ? ' locked' : '');
+      html += '<div class="' + cardCls + '">';
+        html += '<canvas class="skinPreview" width="60" height="60" data-skin="' + skin.id + '"></canvas>';
+        html += '<div class="skinName">' + skin.name + badge + '</div>';
+        html += '<div class="skinDesc">' + skin.desc + '</div>';
+        html += '<div class="skinPrice">' + (isChamp ? t('shopChampionSeason') : (skin.cost === 0 ? t('shopFree') : '🪙 '
+          + skin.cost)) + '</div>';
+        html +=
+        '<button class="skinAction ' + cls + '" data-skin="' + skin.id + '" data-action="' + (isActive ? 'active' : isOwned ? 'equip' : 'buy') + '" ' + attr + '>' + label + '</button>';
+        html += '</div>';
       }
       html += '</div>';
     } else if (tab === 'backgrounds') {
-      html += '<div class="shopGrid">';
+    html += '<div class="shopGrid">';
       for (const b of BACKGROUNDS) {
-        const isOwned = ownedBg.indexOf(b.id) !== -1;
-        const isActive = activeBg === b.id;
-        const isChamp = !!b.champion;
-        const canAfford = coins >= b.cost;
-        let label, cls, attr;
-        if (isActive) { label = '✓ Активен'; cls = 'active-btn'; attr = 'disabled'; }
-        else if (isOwned) { label = 'Применить'; cls = 'equip'; attr = ''; }
-        else if (isChamp) { label = '🏆 Только за турнир'; cls = 'champion-locked'; attr = 'disabled'; }
-        else if (canAfford) { label = 'Купить'; cls = 'buy'; attr = ''; }
-        else { label = 'Не хватает'; cls = 'disabled'; attr = 'disabled'; }
-        const badge = isChamp ? '<span class="champBadge">🏆</span>' : (b.animated ? '<span class="animBadge">✨</span>' : '');
-        const cardCls = 'shopCard' + (isOwned ? ' owned' : '') + (isActive ? ' active' : '') + (isChamp ? ' champion' : '') + (isChamp && !isOwned ? ' locked' : '');
-        html += '<div class="' + cardCls + '">'
-          + '<div style="width:60px;height:60px;border-radius:12px;background:' + (b.css || 'linear-gradient(135deg,#2a1055,#050010)') + ';border:1px solid rgba(255,255,255,0.15);"></div>'
-          + '<div class="skinName">' + b.name + badge + '</div>'
-          + '<div class="skinPrice">' + (isChamp ? 'Сезон турнира' : (b.cost === 0 ? 'Бесплатно' : '🪙 ' + b.cost)) + '</div>'
-          + '<button class="skinAction ' + cls + '" data-bg="' + b.id + '" data-action="' + (isActive ? 'active' : isOwned ? 'equip' : 'buy') + '" ' + attr + '>' + label + '</button>'
-          + '</div>';
+      const isOwned = ownedBg.indexOf(b.id) !== -1;
+      const isActive = activeBg === b.id;
+      const isChamp = !!b.champion;
+      const canAfford = coins >= b.cost;
+      let label, cls, attr;
+      if (isActive) { label = '✓ ' + t('shopActive'); cls = 'active-btn'; attr = 'disabled'; }
+      else if (isOwned) { label = t('shopEquipBg'); cls = 'equip'; attr = ''; }
+      else if (isChamp) { label = '🏆 ' + t('shopChampion'); cls = 'champion-locked'; attr = 'disabled'; }
+      else if (canAfford) { label = t('shopBuy'); cls = 'buy'; attr = ''; }
+      else { label = t('shopNotEnough'); cls = 'disabled'; attr = 'disabled'; }
+      const badge = isChamp ? '<span class="champBadge">🏆</span>' : (b.animated ? '<span class="animBadge">✨</span>' :
+      '');
+      const cardCls = 'shopCard' + (isOwned ? ' owned' : '') + (isActive ? ' active' : '') + (isChamp ? ' champion' : '')
+      + (isChamp && !isOwned ? ' locked' : '');
+      html += '<div class="' + cardCls + '">';
+        const bgPreview = 'width:60px;height:60px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:' +
+        (b.css || 'linear-gradient(135deg,#2a1055,#050010)');
+        html += '<div style="' + bgPreview + '"></div>';
+        html += '<div class="skinName">' + b.name + badge + '</div>';
+        html += '<div class="skinPrice">' + (isChamp ? t('shopChampionSeason') : (b.cost === 0 ? t('shopFree') : '🪙 ' +
+          b.cost)) + '</div>';
+        html +=
+        '<button class="skinAction ' + cls + '" data-bg="' + b.id + '" data-action="' + (isActive ? 'active' : isOwned ? 'equip' : 'buy') + '" ' + attr + '>' + label + '</button>';
+        html += '</div>';
       }
       html += '</div>';
     } else if (tab === 'avatars') {
-      html += '<div class="avatarGrid">';
-      for (const a of AVATARS) {
-        const isOwned = ownedAv.indexOf(a.id) !== -1;
-        const isActive = activeAv === a.id;
-        const canAfford = coins >= a.cost;
+    html += '<div class="avatarGrid">';
+      for (let ai = 0; ai < AVATARS.length; ai++) { const a=AVATARS[ai]; const isOwned=ownedAv.indexOf(a.id) !==-1; const
+        isActive=activeAv===a.id; const canAfford=coins>= a.cost;
         let cellCls = 'avatarCell';
         if (isActive) cellCls += ' active';
         else if (isOwned) cellCls += ' owned';
         else if (!canAfford) cellCls += ' locked';
-        html += '<div class="' + cellCls + '" data-av="' + a.id + '" data-action="' + (isActive ? 'active' : isOwned ? 'equip' : 'buy') + '">'
-          + '<div class="avatarCellInner">'
-          + '<div style="font-size:24px;">' + a.emoji + '</div>'
-          + (isOwned && !isActive ? '<div style="font-size:9px;color:#2ed573;">✓</div>' : '')
-          + (!isOwned ? '<div class="cellPrice">' + (a.cost === 0 ? 'Free' : '🪙'+a.cost) + '</div>' : '')
-          + '</div></div>';
-      }
-      html += '</div>';
+        const avAction = isActive ? 'active' : (isOwned ? 'equip' : 'buy');
+        html += '<div class="' + cellCls + '" data-av="' + a.id + '" data-action="' + avAction + '">';
+          html += '<div class="avatarCellInner">';
+            html += '<div style="font-size:24px;">' + a.emoji + '</div>';
+            if (isOwned && !isActive) {
+            html += '<div style="font-size:9px;color:#2ed573;">&#10003;</div>';
+            }
+            if (!isOwned) {
+            const priceText = a.cost === 0 ? t('shopFree') : ('&#129689; ' + a.cost);
+            html += '<div class="cellPrice">' + priceText + '</div>';
+            }
+            html += '</div>';
+          html += '</div>';
+        }
+        html += '</div>';
     } else if (tab === 'titles') {
-      for (const t of TITLES) {
-        const isOwned = ownedTitles.indexOf(t.id) !== -1;
-        const isActive = activeTitle === t.id;
-        let btn = '';
-        if (isActive) btn = '<button class="questBtn" disabled style="width:auto;padding:6px 14px;">✓ Активен</button>';
-        else if (isOwned) btn = '<button class="questBtn" style="width:auto;padding:6px 14px;" data-title="' + t.id + '" data-action="equip">Выбрать</button>';
-        else btn = '<div style="font-size:11px;color:rgba(255,255,255,0.4);">🔒 Не открыт</div>';
-        html += '<div class="achRow' + (isOwned ? ' unlocked' : '') + '">'
-          + '<div class="achBody"><div class="achName">' + t.name + '</div></div>'
-          + btn + '</div>';
-      }
-    }
+    for (let ti = 0; ti < TITLES.length; ti++) { const tt=TITLES[ti]; const isOwned=ownedTitles.indexOf(tt.id) !==-1; const
+      isActive=activeTitle===tt.id; let rowCls='achRow' + (isOwned ? ' unlocked' : '' ); html +='<div class="' + rowCls
+      + '">' ; html +='<div class="achBody">' ; html +='<div class="achName">' + tt.name + '</div>' ; html +='</div>' ; if
+      (isActive) { html +='<button class="questBtn" disabled style="width:auto;padding:6px 14px;">&#10003; ' +
+      t('shopActive') + '</button>' ; } else if (isOwned) { html
+      +='<button class="questBtn" style="width:auto;padding:6px 14px;" data-title="' + tt.id + '" data-action="equip">' +
+      t('shopEquip') + '</button>' ; } else { html
+      +='<div style="font-size:11px;color:rgba(255,255,255,0.4);">&#128274;</div>' ; } html +='</div>' ; } }
     html += '</div>';
-    
-    showOverlay('🎨 МАГАЗИН', '', [
-    { text: '📺 Скин на 24ч', action: function() {
-    showFakeAd(15, 'Бесплатный скин на 24 часа', function() {
-    showToast('🎁 Скин активирован на 24 часа (заглушка)');
-    }, function() {});
-    }},
-    { text: 'Закрыть', action: hideOverlay, secondary: true }
-    ], false, '', html);
-
-    setTimeout(function() {
-      document.querySelectorAll('.shopTab').forEach(function(tb) {
-        tb.onclick = function() { Audio.click(); showShopOverlay(tb.dataset.tab); };
-      });
-      document.querySelectorAll('.skinPreview').forEach(function(cv) {
-        const skin = SKINS[cv.dataset.skin];
-        if (!skin) return;
-        const ctx = cv.getContext('2d');
-        const colors = ['#ff4757', '#1e90ff', '#2ed573', '#ffdd59'];
-        for (let i = 0; i < 4; i++) skin.render(ctx, (i%2)*30+1, Math.floor(i/2)*30+1, 28, colors[i], 1, 0);
-      });
-      document.querySelectorAll('.skinAction[data-skin]').forEach(function(btn) {
-        btn.onclick = function() {
-          if (btn.disabled) return;
-          const id = btn.dataset.skin;
-          if (btn.dataset.action === 'buy') buySkin(id);
-          else if (btn.dataset.action === 'equip') equipSkin(id);
-        };
-      });
-      document.querySelectorAll('.skinAction[data-bg]').forEach(function(btn) {
-        btn.onclick = function() {
-          if (btn.disabled) return;
-          const id = btn.dataset.bg;
-          if (btn.dataset.action === 'buy') buyBackground(id);
-          else if (btn.dataset.action === 'equip') equipBackground(id);
-        };
-      });
-      document.querySelectorAll('.avatarCell').forEach(function(cell) {
-        cell.onclick = function() {
-          const action = cell.dataset.action;
-          if (action === 'active') return;
-          const id = parseInt(cell.dataset.av, 10);
-          if (action === 'buy') buyAvatar(id);
-          else if (action === 'equip') equipAvatar(id);
-        };
-      });
-      document.querySelectorAll('[data-title][data-action="equip"]').forEach(function(btn) {
-        btn.onclick = function() { equipTitle(btn.dataset.title); };
-      });
-    }, 30);
-  }
+  
+  showOverlay('🎨 ' + t('shopTitle'), '', [
+  { text: '📺 ' + t('adSkinBtn'), action: function() {
+  showFakeAd(15, t('adFreeSkin'), function() {
+  showToast(t('toastAdReward'));
+  }, function() {});
+  }},
+  { text: t('btnClose'), action: hideOverlay, secondary: true }
+  ], false, '', html);
+  
+  setTimeout(function() {
+  document.querySelectorAll('.shopTab').forEach(function(tb) {
+  tb.onclick = function() { Audio.click(); showShopOverlay(tb.dataset.tab); };
+  });
+  document.querySelectorAll('.skinPreview').forEach(function(cv) {
+  const skin = SKINS[cv.dataset.skin];
+  if (!skin) return;
+  const ctx = cv.getContext('2d');
+  const colors = ['#ff4757', '#1e90ff', '#2ed573', '#ffdd59'];
+  for (let i = 0; i < 4; i++) skin.render(ctx, (i%2)*30+1, Math.floor(i/2)*30+1, 28, colors[i], 1, 0); });
+    document.querySelectorAll('.skinAction[data-skin]').forEach(function(btn) { btn.onclick=function() { if (btn.disabled)
+    return; const id=btn.dataset.skin; if (btn.dataset.action==='buy' ) buySkin(id); else if (btn.dataset.action==='equip'
+    ) equipSkin(id); }; }); document.querySelectorAll('.skinAction[data-bg]').forEach(function(btn) {
+    btn.onclick=function() { if (btn.disabled) return; const id=btn.dataset.bg; if (btn.dataset.action==='buy' )
+    buyBackground(id); else if (btn.dataset.action==='equip' ) equipBackground(id); }; });
+    document.querySelectorAll('.avatarCell').forEach(function(cell) { cell.onclick=function() { const
+    action=cell.dataset.action; if (action==='active' ) return; const id=parseInt(cell.dataset.av, 10); if (action==='buy'
+    ) buyAvatar(id); else if (action==='equip' ) equipAvatar(id); }; });
+    document.querySelectorAll('[data-title][data-action="equip" ]').forEach(function(btn) { btn.onclick=function() {
+    equipTitle(btn.dataset.title); }; }); }, 30); }
 
   function buySkin(skinId) {
     if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
@@ -4334,7 +4328,13 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       startPuzzle();
       return;
     }
-
+    // Запрашиваем античит-сессию
+    state.soloSessionId = null;
+    if (state.socket && state.socket.connected) {
+      state.socket.emit('startSoloGame', { userId: state.userId, mode: mode }, function(res) {
+        if (res && res.sessionId) state.soloSessionId = res.sessionId;
+      });
+    }
     state.mode = 'solo';
     state.sequence = genLocalSequence(500); state.seqIndex = 0;
     state.board = emptyBoard();
@@ -4414,6 +4414,12 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
           showToast('Не удалось загрузить пазл');
           return;
         }
+                state.soloSessionId = null;
+        if (state.socket && state.socket.connected) {
+          state.socket.emit('startSoloGame', { userId: state.userId, mode: 'puzzle' }, function(r) {
+            if (r && r.sessionId) state.soloSessionId = r.sessionId;
+          });
+        }
         state.mode = 'solo';
         state.soloMode = 'puzzle';
         state.sequence = data.sequence;
@@ -4473,14 +4479,27 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       let done = false;
       const t = setTimeout(function() { if (done) return; done = true; finishUI(state.profile, 0, 0, null, true); }, 5000);
       state.socket.emit('submitSoloResult', {
-        userId: state.userId,
-        score: state.myScore,
-        maxCombo: state.combo || 0,
-        linesCleared: state.totalLinesCleared || 0,
-        mode: state.soloMode || 'classic'
+      userId: state.userId,
+      score: state.myScore,
+      maxCombo: state.combo || 0,
+      linesCleared: state.totalLinesCleared || 0,
+      mode: state.soloMode || 'classic',
+      sessionId: state.soloSessionId
       }, function(res) {
         if (done) return; done = true;
         clearTimeout(t);
+                if (res && res.error) {
+                const msgs = {
+                invalid_session: 'Сессия не найдена',
+                score_too_high: 'Слишком быстро',
+                too_fast: 'Игра слишком короткая',
+                too_frequent: 'Слишком часто',
+                session_mismatch: 'Ошибка сессии'
+                };
+                showToast(msgs[res.error] || 'Ошибка валидации');
+                finishUI(state.profile, 0, 0, null, true);
+                return;
+                }
         if (res && res.profile) {
           state.profile = res.profile;
           state.activeSkin = res.profile.activeSkin || state.activeSkin;
@@ -4766,116 +4785,84 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   }
 
   function showFriendsOverlay() {
-    showOverlay('👫 ДРУЗЬЯ', '', [
-      { text: 'Закрыть', action: hideOverlay, secondary: true }
-    ], false);
-        $('overlayCustom').innerHTML = '<div style="width:100%;">'
-          + '<div class="refBox" id="refBox">'
-            + '<div class="refInfo">'
-              + '<div class="refTitle">🤝 Реферальная ссылка</div>'
-              + '<div class="refCount">Приглашено: <b>' + ((state.profile && state.profile.referralCount) || 0) + '</b> · +100 обоим</div>'
-              + '</div>'
-            + '<button id="refCopyBtn">Копировать</button>'
-            + '</div>'
-          + '<div id="addFriendRow">'
-      + '<input id="addFriendInput" type="text" placeholder="ID или ник" maxlength="64">'
-      + '<button id="addFriendBtn">Найти</button>'
-      + '</div>'
-      + '<div id="friendSearchResults"></div>'
-      + '<div id="friendsListWrap"></div>'
-      + '</div>';
-        const refCopy = $('refCopyBtn');
-        if (refCopy) {
-        refCopy.onclick = function() {
-        copyText(getReferralLink()).then(function() {
-        refCopy.textContent = '✓ Готово';
-        setTimeout(function() { refCopy.textContent = 'Копировать'; }, 1500);
-        });
-        };
-        }
-    $('addFriendBtn').onclick = searchPlayers;
-    $('addFriendInput').onkeydown = function(e) { if (e.key === 'Enter') searchPlayers(); };
-    loadFriends();
+  showOverlay('👫 ' + t('friendsTitle'), '', [
+  { text: t('btnClose'), action: hideOverlay, secondary: true }
+  ], false);
+  const refCount = (state.profile && state.profile.referralCount) || 0;
+  let html = '';
+  html += '<div style="width:100%;">';
+    html += '<div class="refBox" id="refBox">';
+      html += '<div class="refInfo">';
+        html += '<div class="refTitle">🤝 ' + t('friendsRefLink') + '</div>';
+        html += '<div class="refCount">' + t('friendsRefCount') + ': <b>' + refCount + '</b></div>';
+        html += '</div>';
+      html += '<button id="refCopyBtn">' + t('friendsRefCopy') + '</button>';
+      html += '</div>';
+    html += '<div id="addFriendRow">';
+      html += '<input id="addFriendInput" type="text" placeholder="' + t('friendsSearchPlaceholder') + '" maxlength="64">';
+      html += '<button id="addFriendBtn">' + t('friendsSearch') + '</button>';
+      html += '</div>';
+    html += '<div id="friendSearchResults"></div>';
+    html += '<div id="friendsListWrap"></div>';
+    html += '</div>';
+  $('overlayCustom').innerHTML = html;
+  $('addFriendBtn').onclick = searchPlayers;
+  $('addFriendInput').onkeydown = function(e) { if (e.key === 'Enter') searchPlayers(); };
+  const refCopy = $('refCopyBtn');
+  if (refCopy) {
+  refCopy.onclick = function() {
+  copyText(getReferralLink()).then(function() {
+  refCopy.textContent = '✓ ' + t('friendsRefCopied');
+  setTimeout(function() { refCopy.textContent = t('friendsRefCopy'); }, 1500);
+  });
+  };
   }
+  loadFriends();
+  }
+  
   function searchPlayers() {
-    const q = $('addFriendInput').value.trim();
-    if (q.length < 2) return;
-    if (!state.socket || !state.socket.connected) return;
-    state.socket.emit('findPlayer', { userId: state.userId, query: q }, function(res) {
-      const wrap = $('friendSearchResults');
-      if (!res || !res.results || res.results.length === 0) {
-        wrap.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.5);padding:8px;">Никого не найдено</div>';
-        return;
+  const q = $('addFriendInput').value.trim();
+  if (q.length < 2) return; if (!state.socket || !state.socket.connected) return; state.socket.emit('findPlayer', {
+    userId: state.userId, query: q }, function(res) { const wrap=$('friendSearchResults'); if (!wrap) return; if (!res ||
+    !res.results || res.results.length===0) {
+    wrap.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,0.5);padding:8px;">' + t('friendsNobody') + '</div>'
+    ; return; } let html='' ; html +='<div class="sectionTitle">' + t('friendsSearch') + '</div>' ; for (let i=0; i <
+    res.results.length; i++) { const p=res.results[i]; const cardCls='friendCard' + (p.isOnline ? ' online' : '' ); html
+    +='<div class="' + cardCls + '">' ; html +='<div class="statusDot"></div>' ; html +='<div class="fName">' +
+    getAvatarEmoji(p.activeAvatar || 0) + ' ' + escapeHtml(p.name) + '</div>' ; html +='<div class="fRating">' + p.rating
+    + '</div>' ; html +='<div class="fActions">' ; if (p.isFriend) { html +='<button class="fBtn remove" data-uid="' +
+    p.userId + '" data-action="remove">' + t('friendsRemove') + '</button>' ; } else { html
+    +='<button class="fBtn invite" data-uid="' + p.userId + '" data-action="add">' + t('friendsAdd') + '</button>' ; }
+    html +='</div>' ; html +='</div>' ; } wrap.innerHTML=html; wrap.querySelectorAll('.fBtn').forEach(function(btn) {
+    btn.onclick=function() { if (btn.dataset.action==='add' ) sendFriendRequest(btn.dataset.uid); else if
+    (btn.dataset.action==='remove' ) removeFriend(btn.dataset.uid); }; }); }); } function loadFriends() { if
+    (!state.socket || !state.socket.connected) return; state.socket.emit('getFriends', { userId: state.userId },
+    function(res) { const wrap=$('friendsListWrap'); if (!wrap) return; if (!res) { wrap.innerHTML='' ; return; } let
+    html='' ; if (res.requests && res.requests.length> 0) {
+    html += '<div class="sectionTitle">' + t('friendsRequests') + '</div>';
+    for (let ri = 0; ri < res.requests.length; ri++) { const r=res.requests[ri]; html +='<div class="friendCard">' ; html
+      +='<div class="statusDot"></div>' ; html +='<div class="fName">' + getAvatarEmoji(r.activeAvatar || 0) + ' ' +
+      escapeHtml(r.name) + '</div>' ; html +='<div class="fRating">' + r.rating + '</div>' ; html
+      +='<div class="fActions">' ; html +='<button class="fBtn accept" data-uid="' + r.userId
+      + '" data-action="accept">✓</button>' ; html +='<button class="fBtn decline" data-uid="' + r.userId
+      + '" data-action="decline">✕</button>' ; html +='</div>' ; html +='</div>' ; } } const friendsCount=res.friends ?
+      res.friends.length : 0; html +='<div class="sectionTitle">' + t('friendsMy') + ' (' + friendsCount + ')</div>' ; if
+      (!res.friends || res.friends.length===0) { html
+      +='<div style="font-size:12px;color:rgba(255,255,255,0.5);padding:8px;">' + t('friendsEmpty') + '</div>' ; } else {
+      const sorted=res.friends.slice().sort(function(a, b) { return (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0); }); for
+      (let fi=0; fi < sorted.length; fi++) { const f=sorted[fi]; const cardCls='friendCard' + (f.isOnline ? ' online' : ''
+      ); html +='<div class="' + cardCls + '">' ; html +='<div class="statusDot"></div>' ; html +='<div class="fName">' +
+      getAvatarEmoji(f.activeAvatar || 0) + ' ' + escapeHtml(f.name) + '</div>' ; html +='<div class="fRating">' +
+      f.rating + '</div>' ; html +='<div class="fActions">' ; if (f.isOnline) { html
+      +='<button class="fBtn invite" data-uid="' + f.userId + '" data-action="invite">' + t('friendsInvite') + '</button>'
+      ; } html +='<button class="fBtn remove" data-uid="' + f.userId + '" data-action="remove">✕</button>' ; html
+      +='</div>' ; html +='</div>' ; } } wrap.innerHTML=html; wrap.querySelectorAll('.fBtn').forEach(function(btn) {
+      btn.onclick=function() { const uid=btn.dataset.uid; const action=btn.dataset.action; if (action==='accept' )
+      acceptFriendRequest(uid); else if (action==='decline' ) declineFriendRequest(uid); else if (action==='remove' )
+      removeFriend(uid); else if (action==='invite' ) inviteFriendToMatch(uid); }; }); updateFriendsBadge(res.requests ?
+      res.requests.length : 0); }); 
       }
-      let html = '<div class="sectionTitle">Найденные</div>';
-      for (const p of res.results) {
-        html += '<div class="friendCard' + (p.isOnline ? ' online' : '') + '">'
-          + '<div class="statusDot"></div>'
-          + '<div class="fName">' + getAvatarEmoji(p.activeAvatar || 0) + ' ' + escapeHtml(p.name) + '</div>'
-          + '<div class="fRating">' + p.rating + '</div>'
-          + '<div class="fActions">'
-          + (p.isFriend ? '<button class="fBtn remove" data-uid="' + p.userId + '" data-action="remove">Удалить</button>'
-            : '<button class="fBtn invite" data-uid="' + p.userId + '" data-action="add">Добавить</button>')
-          + '</div></div>';
-      }
-      wrap.innerHTML = html;
-      wrap.querySelectorAll('.fBtn').forEach(function(btn) {
-        btn.onclick = function() {
-          if (btn.dataset.action === 'add') sendFriendRequest(btn.dataset.uid);
-          else if (btn.dataset.action === 'remove') removeFriend(btn.dataset.uid);
-        };
-      });
-    });
-  }
-  function loadFriends() {
-    if (!state.socket || !state.socket.connected) return;
-    state.socket.emit('getFriends', { userId: state.userId }, function(res) {
-      const wrap = $('friendsListWrap');
-      if (!wrap) return;
-      if (!res) { wrap.innerHTML = ''; return; }
-      let html = '';
-      if (res.requests && res.requests.length > 0) {
-        html += '<div class="sectionTitle">Заявки</div>';
-        for (const r of res.requests) {
-          html += '<div class="friendCard">'
-            + '<div class="statusDot"></div>'
-            + '<div class="fName">' + getAvatarEmoji(r.activeAvatar || 0) + ' ' + escapeHtml(r.name) + '</div>'
-            + '<div class="fRating">' + r.rating + '</div>'
-            + '<div class="fActions">'
-            + '<button class="fBtn accept" data-uid="' + r.userId + '" data-action="accept">✓</button>'
-            + '<button class="fBtn decline" data-uid="' + r.userId + '" data-action="decline">✕</button>'
-            + '</div></div>';
-        }
-      }
-      html += '<div class="sectionTitle">Мои друзья (' + (res.friends ? res.friends.length : 0) + ')</div>';
-      if (!res.friends || res.friends.length === 0) {
-        html += '<div style="font-size:12px;color:rgba(255,255,255,0.5);padding:8px;">Пока никого. Добавьте по ID.</div>';
-      } else {
-        const sorted = res.friends.slice().sort(function(a, b) { return (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0); });
-        for (const f of sorted) {
-          html += '<div class="friendCard' + (f.isOnline ? ' online' : '') + '">'
-            + '<div class="statusDot"></div>'
-            + '<div class="fName">' + getAvatarEmoji(f.activeAvatar || 0) + ' ' + escapeHtml(f.name) + '</div>'
-            + '<div class="fRating">' + f.rating + '</div>'
-            + '<div class="fActions">'
-            + (f.isOnline ? '<button class="fBtn invite" data-uid="' + f.userId + '" data-action="invite">Играть</button>' : '')
-            + '<button class="fBtn remove" data-uid="' + f.userId + '" data-action="remove">✕</button>'
-            + '</div></div>';
-        }
-      }
-      wrap.innerHTML = html;
-      wrap.querySelectorAll('.fBtn').forEach(function(btn) {
-        btn.onclick = function() {
-          const uid = btn.dataset.uid, action = btn.dataset.action;
-          if (action === 'accept') acceptFriendRequest(uid);
-          else if (action === 'decline') declineFriendRequest(uid);
-          else if (action === 'remove') removeFriend(uid);
-          else if (action === 'invite') inviteFriendToMatch(uid);
-        };
-      });
-      updateFriendsBadge(res.requests ? res.requests.length : 0);
-    });
-  }
+
   function sendFriendRequest(targetId) {
     if (!state.socket || !state.socket.connected) return;
     state.socket.emit('sendFriendRequest', { userId: state.userId, targetId: targetId }, function(res) {
@@ -5096,7 +5083,7 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     };
   }
   // ============ ГЛАВНЫЕ ПОДМЕНЮ ============
-  function showPlayMenu() {
+ function showPlayMenu() {
     showOverlay('🎮 ' + t('playTitle'), '', [
       { text: t('btnBack'), action: showMenu, secondary: true }
     ], false);
@@ -5175,6 +5162,9 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   $('smQuests').onclick = function() { Audio.click(); showQuestsOverlay(); };
   $('smAch').onclick = function() { Audio.click(); showAchievementsOverlay(); };
   }
+
+
+
     // ============ ЧАТ (эмодзи) ============
   function showEmoteFloat(emoji) {
   const el = $('emoteFloat');
