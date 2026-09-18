@@ -13,7 +13,7 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="apple-touch-icon" href="/icon.svg">
   <title>Block Blast Duel</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js" type="22826a0a07d1da3bbf4784ed-text/javascript"></script>
   <style>
     * {
       margin: 0;
@@ -2491,8 +2491,8 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     <div class="btnRow" id="overlayBtns"></div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
+  <script src="/socket.io/socket.io.js" type="22826a0a07d1da3bbf4784ed-text/javascript"></script>
+  <script type="22826a0a07d1da3bbf4784ed-text/javascript">
     (function () {
   'use strict';
     const tg = window.Telegram && window.Telegram.WebApp;
@@ -3614,6 +3614,7 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
         ,
     soloMode: 'classic',
     soloSessionId: null,
+    pendingMigrationCode: null,
     speedrunTimer: null,
     speedrunStart: 0,
     speedrunLeft: 60,
@@ -4363,8 +4364,13 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       +='<div style="font-size:11px;color:rgba(255,255,255,0.4);">&#128274;</div>' ; } html +='</div>' ; } }
     html += '</div>';
   
-  showOverlay('🎨 ' + t('shopTitle'), '', [
-  { text: '📺 ' + t('adSkinBtn'), action: function() {
+    const isTgApp = !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user);
+    const migrateLabel = isTgApp ? '📥 Принять перенос' : '📱 Перенести в Telegram';
+    showOverlay('🎨 ' + t('shopTitle'), '', [
+      { text: migrateLabel, action: function() {
+        startMigrationFlow();
+      }},
+      { text: '📺 ' + t('adSkinBtn'), action: function() {
   showFakeAd(15, t('adFreeSkin'), function() {
   showToast(t('toastAdReward'));
   }, function() {});
@@ -4526,6 +4532,101 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       }
     });
   }
+  function startMigrationFlow() {
+    if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
+    const isTg = !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user);
+    if (isTg) {
+      showMigrationInput();
+    } else {
+      generateMigrationCode();
+    }
+  }
+
+  function generateMigrationCode() {
+    showOverlay('📱 ПЕРЕНОС В TELEGRAM', 'Готовим код...', null, true);
+    state.socket.emit('generateMigrationCode', { userId: state.userId }, function(res) {
+      $('spinner').style.display = 'none';
+      if (!res || !res.code) {
+        showOverlay('ОШИБКА', 'Не удалось создать код', [
+          { text: 'Закрыть', action: hideOverlay, secondary: true }
+        ], false);
+        return;
+      }
+      const code = res.code;
+      const custom = ''
+        + '<div style="text-align:center;padding:8px 0;">'
+        + '<div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;">Код миграции</div>'
+        + '<div style="font-family:monospace;font-size:42px;font-weight:900;letter-spacing:10px;color:#ffd93b;margin:12px 0;text-shadow:0 0 24px rgba(255,217,59,0.7);">' + code + '</div>'
+        + '<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:16px;">Действует 15 минут</div>'
+        + '<div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;text-align:left;padding:12px;background:rgba(255,255,255,0.04);border-radius:12px;">'
+        + '<b>Что делать:</b><br>'
+        + '1. Скопируй код<br>'
+        + '2. Открой игру в Telegram-боте<br>'
+        + '3. Магазин → <b>Принять перенос</b><br>'
+        + '4. Вставь код и нажми «Применить»'
+        + '</div>'
+        + '</div>';
+      showOverlay('📱 ПЕРЕНОС', '', [
+        { text: '📋 Скопировать код', action: function() {
+          copyText(code).then(function() { showToast('Код скопирован'); });
+        }},
+        { text: 'Закрыть', action: hideOverlay, secondary: true }
+      ], false, '', custom);
+    });
+  }
+
+  function showMigrationInput() {
+    const custom = ''
+      + '<div style="padding:8px 0;">'
+      + '<div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:14px;text-align:left;">'
+      + 'Открой игру в обычном браузере, зайди в <b>Магазин → Перенести в Telegram</b>, получи код и введи его здесь.'
+      + '</div>'
+      + '<input id="migrateInput" type="text" maxlength="8" placeholder="A7K2M9" autocomplete="off" autocorrect="off" spellcheck="false" style="width:100%;padding:16px;border-radius:12px;border:2px solid rgba(255,215,0,0.5);background:rgba(255,255,255,0.06);color:#fff;font-size:24px;text-align:center;font-family:monospace;letter-spacing:8px;text-transform:uppercase;outline:none;box-sizing:border-box;">'
+      + '</div>';
+    showOverlay('📥 ПРИНЯТЬ ПЕРЕНОС', '', [
+      { text: 'Применить', action: function() {
+        const val = ($('migrateInput') && $('migrateInput').value || '').trim().toUpperCase();
+        if (val.length < 4) { showToast('Введи код'); return; }
+        applyMigrationCode(val);
+      }},
+      { text: 'Отмена', action: hideOverlay, secondary: true }
+    ], false, '', custom);
+    setTimeout(function() { try { $('migrateInput').focus(); } catch(e){} }, 200);
+  }
+
+  function applyMigrationCode(code) {
+    if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
+    showOverlay('ПЕРЕНОС ПРОГРЕССА', 'Применяем...', null, true);
+    state.socket.emit('applyMigrationCode', { newUserId: state.userId, code: code }, function(res) {
+      $('spinner').style.display = 'none';
+      if (res && res.ok && res.profile) {
+        state.profile = res.profile;
+        state.activeSkin = res.profile.activeSkin || 'classic';
+        state.activeSkin = res.profile.activeSkin || 'classic';
+        saveLocalMeta();
+        renderMenuRank();
+        renderMenuAvatarAndTitle();
+        applyBackground();
+        applyMenuTheme();
+        Audio.win();
+        showOverlay('✅ ГОТОВО', 'Прогресс перенесён!<br>Монет: <b>' + res.profile.coins + '</b><br>Рейтинг: <b>' + res.profile.rating + '</b>', [
+          { text: 'Играть', action: hideOverlay }
+        ], false);
+      } else {
+        const msgs = {
+          invalid_code: 'Код не найден или устарел',
+          same_user: 'Это тот же аккаунт',
+          old_not_found: 'Исходный профиль не найден'
+        };
+        showOverlay('❌ ОШИБКА', msgs[res && res.error] || 'Не удалось перенести', [
+          { text: 'Попробовать снова', action: showMigrationInput },
+          { text: 'Закрыть', action: hideOverlay, secondary: true }
+        ], false);
+      }
+    });
+  }
+      
+   
   function showAchievementsOverlay() {
     showOverlay('🏅 ДОСТИЖЕНИЯ', '', [
       { text: 'Закрыть', action: hideOverlay, secondary: true }
@@ -4943,8 +5044,14 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
           applyMenuTheme();
           needsRedraw = true;
           updateQuestsBadge();
-          if (!state.nameManuallySet && (profileNameIsAuto || !res.profile.name)) setTimeout(openNameInput, 400);
-          else tryJoinPendingRoom();
+            if (!state.nameManuallySet && (profileNameIsAuto || !res.profile.name)) {
+            setTimeout(openNameInput, 400);
+          } else {
+            tryJoinPendingRoom();
+          }
+          if (state.pendingMigrationCode) {
+            applyPendingMigration();
+          }
         }
       });
       const wasInGame = state.mode === 'duel' && state.gameState === 'playing';
@@ -5800,9 +5907,23 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       }
     }
   }
+    function detectMigrationParam() {
+    try {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (!tg || !tg.initDataUnsafe) return;
+      const startParam = tg.initDataUnsafe.start_param;
+      if (!startParam) return;
+      if (startParam.indexOf('MIGRATE_') !== 0) return;
+      const code = startParam.substring(8);
+      if (!code) return;
+      // Очищаем URL-параметр через замену истории
+      state.pendingMigrationCode = code;
+    } catch (e) {}
+  }
   function boot() {
     detectRoomCode();
     detectReferral();
+    detectMigrationParam();
     state.board = emptyBoard();
     state.userId = getUserId();
     const name = getUserName();
@@ -5836,6 +5957,6 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   else boot();
 })();
   </script>
-</body>
+<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="22826a0a07d1da3bbf4784ed-|49" defer></script><script type="5c0ece16ea0d4c7625c45e8e-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd0588ddeefa24',t:'MTc4OTY5OTYwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5c0ece16ea0d4c7625c45e8e-|49" defer></script><script type="9e502843f158001249840c0b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd118fc8603637',t:'MTc4OTcwMDA5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="9e502843f158001249840c0b-|49" defer></script><script type="6991f0d37910f5c947190816-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd167c1f23a0af',t:'MTc4OTcwMDI5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="6991f0d37910f5c947190816-|49" defer></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd949f1953dc48',t:'MTc4OTcwNTQ2MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 
 </html>
