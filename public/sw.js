@@ -29,20 +29,29 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
 
+  // Игнорируем всё, что не наш домен
   if (url.origin !== location.origin) return;
+  // Socket.io и API всегда идут напрямую
   if (url.pathname.startsWith('/socket.io/')) return;
   if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/admin')) return;
   if (req.method !== 'GET') return;
 
   e.respondWith(
-    fetch(req).then(resp => {
-      if (resp && resp.status === 200) {
-        const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => { });
-      }
-      return resp;
-    }).catch(() =>
-      caches.match(req).then(r => r || caches.match('/'))
-    )
+    fetch(req)
+      .then(function(resp) {
+        if (resp && resp.status === 200 && resp.type === 'basic') {
+          try {
+            const copy = resp.clone();
+            caches.open(CACHE).then(function(c) { c.put(req, copy); }).catch(function() {});
+          } catch (e) {}
+        }
+        return resp;
+      })
+      .catch(function() {
+        return caches.match(req).then(function(r) {
+          return r || caches.match('/');
+        });
+      })
   );
 });
