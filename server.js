@@ -115,6 +115,8 @@ function migrateProfile(p, uid) {
   if (!Array.isArray(p.tournamentWins)) p.tournamentWins = [];
   if (typeof p.name !== 'string' || !p.name.trim()) p.name = 'Игрок-' + String(uid || '').slice(-4).toUpperCase();
   if (typeof p.banned !== 'boolean') p.banned = false;
+  if (typeof p.tgLinkBonusGiven !== 'boolean') p.tgLinkBonusGiven = false;
+  if (typeof p.vkId !== 'string') p.vkId = null;
   if (typeof p.tgId !== 'string') p.tgId = null;
   if (typeof p.lastGameAt !== 'number') p.lastGameAt = 0;
 }
@@ -452,6 +454,8 @@ function publicProfile(userId) {
     emojiSets: (p.emojiSets || ['classic']).slice(),
     banned: !!p.banned,
     tgId: p.tgId || null,
+    vkId: p.vkId || null,
+    tgLinkBonusGiven: !!p.tgLinkBonusGiven,
     activeEmojiSet: p.activeEmojiSet || 'classic',
     coinsSpent: p.coinsSpent || 0,
     emoteCount: p.emoteCount || 0,
@@ -1495,429 +1499,70 @@ app.get('/admin', (req, res) => {
     res.status(403).send('Forbidden. Add ?key=YOUR_ADMIN_SECRET to URL');
     return;
   }
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+app.get('/admin/stats-data', (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) { res.status(403).json({ error: 'forbidden' }); return; }
 
   const today = todayStr();
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 
-  const activeToday = (stats.dailyActive[today] || []).length;
-  let activeWeek = 0, activeMonth = 0;
+  let activeToday = (stats.dailyActive[today] || []).length;
+  let activeWeek = 0;
   for (const day of Object.keys(stats.dailyActive)) {
     if (day >= weekAgo) activeWeek += stats.dailyActive[day].length;
-    if (day >= monthAgo) activeMonth += stats.dailyActive[day].length;
   }
 
   const totalPlayers = Object.keys(players).length;
-  const totalGames = stats.totalGamesSolo + stats.totalGamesDuel + stats.totalGamesTournament;
-  const avgScore = stats.totalGamesSolo > 0 ? Math.round(stats.totalScoreSolo / stats.totalGamesSolo) : 0;
   const totalCoins = Object.keys(players).reduce(function(s, uid) { return s + (players[uid].coins || 0); }, 0);
   const bannedCount = Object.keys(players).filter(function(uid) { return players[uid].banned; }).length;
-
-  // ID списка скинов и аватарок для селектов
-  const skinList = Object.keys(SKIN_CATALOG);
-  const avatarList = Object.keys(AVATAR_CATALOG).map(function(x) { return parseInt(x, 10); });
-  const bgList = Object.keys(BACKGROUND_CATALOG);
-  const titleList = TITLE_DEFS.map(function(x) { return x.id; });
-  const emojiList = Object.keys(EMOJI_SETS);
-
-  res.set('Content-Type', 'text/html; charset=utf-8');
-  res.send(`<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin · Block Blast Duel</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,sans-serif;background:#0a0520;color:#fff;font-size:14px}
-.header{background:linear-gradient(135deg,#a55eea,#1e90ff);padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
-.header h1{margin:0;font-size:20px}
-.header .badge{font-size:12px;opacity:.8}
-.tabs{display:flex;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.1);padding:0 24px}
-.tabs button{background:none;border:none;color:rgba(255,255,255,.6);padding:14px 20px;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
-.tabs button.active{color:#fff;border-bottom-color:#a55eea}
-.content{padding:24px;max-width:1200px;margin:0 auto}
-.tab-content{display:none}
-.tab-content.active{display:block}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px}
-.card .value{font-size:28px;font-weight:900;color:#ffd93b}
-.card .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.5);margin-top:4px}
-h2{font-size:16px;color:#a55eea;margin:24px 0 12px}
-input,select,button{font-family:inherit;font-size:13px}
-input[type=text],input[type=number],select{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;outline:none;width:100%}
-input:focus,select:focus{border-color:#1e90ff}
-.btn{padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-weight:700;transition:transform .1s;font-family:inherit}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:linear-gradient(135deg,#a55eea,#1e90ff);color:#fff}
-.btn-danger{background:#ff4757;color:#fff}
-.btn-warn{background:#ffa502;color:#000}
-.btn-success{background:#2ed573;color:#000}
-.btn-secondary{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.15)}
-.row{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-.row>input,.row>select{flex:1;min-width:120px}
-.user-list{margin-top:16px}
-.user-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin-bottom:8px}
-.user-item.banned{border-color:#ff4757;background:rgba(255,71,87,.08)}
-.user-item .uid{font-family:monospace;font-size:11px;color:rgba(255,255,255,.4);word-break:break-all}
-.user-item .name{font-size:15px;font-weight:700;margin:4px 0}
-.user-item .meta{font-size:12px;color:rgba(255,255,255,.6);display:flex;gap:14px;flex-wrap:wrap}
-.user-item .actions{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
-.user-item .actions button{padding:6px 12px;font-size:12px;border-radius:8px}
-.user-item .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800}
-.tag-banned{background:#ff4757;color:#fff}
-.tag-tg{background:#229ED9;color:#fff}
-.panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-top:16px}
-.panel h3{margin:0 0 12px;font-size:14px;color:#1e90ff}
-.toast{position:fixed;top:20px;right:20px;background:#2ed573;color:#000;padding:12px 20px;border-radius:10px;font-weight:700;opacity:0;transform:translateY(-20px);transition:all .3s;z-index:999}
-.toast.show{opacity:1;transform:none}
-.toast.error{background:#ff4757;color:#fff}
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>🎛️ Block Blast Duel · Admin</h1>
-  <div class="badge">Игроков: ${totalPlayers} · Онлайн: ${online.size}</div>
-</div>
-<div class="tabs">
-  <button class="active" data-tab="stats">📊 Статистика</button>
-  <button data-tab="players">👥 Игроки</button>
-  <button data-tab="tools">🛠️ Инструменты</button>
-</div>
-<div class="content">
-
-<div class="tab-content active" id="tab-stats">
-  <div class="grid">
-    <div class="card"><div class="value">${totalPlayers}</div><div class="label">Всего игроков</div></div>
-    <div class="card"><div class="value">${online.size}</div><div class="label">Онлайн</div></div>
-    <div class="card"><div class="value">${activeToday}</div><div class="label">Активных сегодня</div></div>
-    <div class="card"><div class="value">${activeWeek}</div><div class="label">За 7 дней</div></div>
-    <div class="card"><div class="value">${totalGames}</div><div class="label">Сыграно игр</div></div>
-    <div class="card"><div class="value">${avgScore}</div><div class="label">Средний счёт</div></div>
-    <div class="card"><div class="value">${stats.maxScoreSolo}</div><div class="label">Макс. счёт</div></div>
-    <div class="card"><div class="value">${totalCoins}</div><div class="label">Монет у игроков</div></div>
-    <div class="card"><div class="value">${bannedCount}</div><div class="label">Забанено</div></div>
-  </div>
-
-  <h2>По режимам</h2>
-  <div class="grid">
-    <div class="card"><div class="value">${stats.totalGamesSolo}</div><div class="label">Соло</div></div>
-    <div class="card"><div class="value">${stats.totalGamesDuel}</div><div class="label">Дуэли</div></div>
-    <div class="card"><div class="value">${stats.totalGamesTournament}</div><div class="label">Турниры</div></div>
-  </div>
-
-  <h2>Вовлечение</h2>
-  <table style="width:100%;border-collapse:collapse">
-    <tr><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Игр сыграно</th><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Дошло игроков</th></tr>
-    ${[1, 5, 10, 20, 50, 100].map(function(b) { return '<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">' + b + '</td><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);color:#ffd93b;font-weight:700">' + (stats.playersByGames[b] || 0) + '</td></tr>'; }).join('')}
-  </table>
-
-  <h2>Новые игроки по дням</h2>
-  <table style="width:100%;border-collapse:collapse">
-    <tr><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Дата</th><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Новых</th><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Активных</th></tr>
-    ${Object.keys(stats.newPlayersByDay).sort().reverse().slice(0, 14).map(function(d) { return '<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">' + d + '</td><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);color:#ffd93b">' + stats.newPlayersByDay[d] + '</td><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">' + (stats.dailyActive[d] || []).length + '</td></tr>'; }).join('')}
-  </table>
-
-  <h2>Прочее</h2>
-  <div class="grid">
-    <div class="card"><div class="value">${stats.totalEmotes}</div><div class="label">Эмодзи</div></div>
-    <div class="card"><div class="value">${stats.totalSkinsBought}</div><div class="label">Скинов куплено</div></div>
-  </div>
-</div>
-
-<div class="tab-content" id="tab-players">
-  <div class="row">
-    <input type="text" id="searchInput" placeholder="Поиск по ID или нику...">
-    <button class="btn btn-primary" onclick="searchUsers()">Найти</button>
-  </div>
-  <div id="userList" class="user-list"></div>
-</div>
-
-<div class="tab-content" id="tab-tools">
-  <div class="panel">
-    <h3>💰 Выдать монеты</h3>
-    <div class="row">
-      <input type="text" id="gc-uid" placeholder="User ID (u_xxx или tg_xxx)">
-      <input type="number" id="gc-amount" placeholder="Сумма" value="1000">
-      <button class="btn btn-primary" onclick="giveCoins()">Выдать</button>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h3>🔄 Перенос аккаунта</h3>
-    <div class="row">
-      <input type="text" id="mg-from" placeholder="Из ID (старый)">
-      <input type="text" id="mg-to" placeholder="В ID (новый)">
-      <button class="btn btn-warn" onclick="migrateAccount()">Перенести</button>
-    </div>
-    <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:8px">Данные из старого ID перезапишут новый. Друзья и рефералы обновятся автоматически.</div>
-  </div>
-
-  <div class="panel">
-    <h3>🛒 Каталог для выдачи</h3>
-    <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.6">
-      <b>Скины:</b> ${skinList.join(', ')}<br>
-      <b>Аватарки:</b> ${avatarList.join(', ')}<br>
-      <b>Фоны:</b> ${bgList.join(', ')}<br>
-      <b>Титулы:</b> ${titleList.join(', ')}<br>
-      <b>Смайлы:</b> ${emojiList.join(', ')}
-    </div>
-  </div>
-</div>
-
-</div>
-<div class="toast" id="toast"></div>
-
-<script>
-const KEY = ${JSON.stringify(secret)};
-const SKIN_LIST = ${JSON.stringify(skinList)};
-const BG_LIST = ${JSON.stringify(bgList)};
-const TITLE_LIST = ${JSON.stringify(titleList)};
-const EMOJI_LIST = ${JSON.stringify(emojiList)};
-const AVATAR_LIST = ${JSON.stringify(avatarList)};
-
-function toast(msg, isError) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (isError ? ' error' : '');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-document.querySelectorAll('.tabs button').forEach(b => {
-  b.onclick = () => {
-    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
-    b.classList.add('active');
-    document.getElementById('tab-' + b.dataset.tab).classList.add('active');
-  };
-});
-
-async function searchUsers() {
-  const q = document.getElementById('searchInput').value.trim();
-  if (q.length < 2) { toast('Минимум 2 символа', true); return; }
-  const res = await fetch('/admin/find-user?key=' + KEY + '&q=' + encodeURIComponent(q));
-  const data = await res.json();
-  renderUsers(data.results || []);
-}
-
-function renderUsers(users) {
-  const wrap = document.getElementById('userList');
-  if (!users.length) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.4)">Никого не найдено</div>'; return; }
-  wrap.innerHTML = users.map(u => {
-    const tags = [];
-    if (u.banned) tags.push('<span class="tag tag-banned">BANNED</span>');
-    if (u.tgId) tags.push('<span class="tag tag-tg">TG</span>');
-    const lastSeen = u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru') : '—';
-    return '<div class="user-item ' + (u.banned ? 'banned' : '') + '">' +
-      '<div class="uid">' + u.userId + ' ' + tags.join(' ') + '</div>' +
-      '<div class="name">' + escapeHtml(u.name) + '</div>' +
-      '<div class="meta">' +
-        '<span>💰 ' + u.coins + '</span>' +
-        '<span>⭐ ' + u.rating + '</span>' +
-        '<span>🏆 ' + u.bestScore + '</span>' +
-        '<span>🎮 ' + u.games + ' игр</span>' +
-        '<span>🎨 ' + u.skins + ' скинов</span>' +
-        '<span>🕐 ' + lastSeen + '</span>' +
-      '</div>' +
-      '<div class="actions">' +
-        '<button class="btn btn-primary" onclick="promptGiveCoins(\\'' + u.userId + '\\')">💰 Монеты</button>' +
-        '<button class="btn btn-primary" onclick="promptGiveSkin(\\'' + u.userId + '\\')">🎨 Скин</button>' +
-        '<button class="btn btn-primary" onclick="promptGiveAvatar(\\'' + u.userId + '\\')">👾 Аватар</button>' +
-        '<button class="btn btn-primary" onclick="promptGiveBg(\\'' + u.userId + '\\')">🖼️ Фон</button>' +
-        '<button class="btn btn-primary" onclick="promptGiveTitle(\\'' + u.userId + '\\')">📛 Титул</button>' +
-        '<button class="btn btn-primary" onclick="promptGiveEmoji(\\'' + u.userId + '\\')">😀 Смайлы</button>' +
-        '<button class="btn btn-success" onclick="giveAllSkins(\\'' + u.userId + '\\')">✨ Все скины</button>' +
-        (u.banned
-          ? '<button class="btn btn-success" onclick="doAction(\\'unban\\', \\'' + u.userId + '\\')">🔓 Разбанить</button>'
-          : '<button class="btn btn-warn" onclick="doAction(\\'ban\\', \\'' + u.userId + '\\')">🚫 Забанить</button>') +
-        '<button class="btn btn-danger" onclick="doDelete(\\'' + u.userId + '\\', \\'' + escapeHtml(u.name).replace(/'/g, '') + '\\')">🗑 Удалить</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-async function doAction(action, userId, extra) {
-  const body = Object.assign({ action, userId }, extra || {});
-  const res = await fetch('/admin/action?key=' + KEY, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  const data = await res.json();
-  if (data.ok) { toast('Готово'); searchUsers(); }
-  else { toast(data.error || 'Ошибка', true); }
-  return data;
-}
-
-async function giveCoins() {
-  const uid = document.getElementById('gc-uid').value.trim();
-  const amount = parseInt(document.getElementById('gc-amount').value, 10);
-  if (!uid || !amount) { toast('Заполни оба поля', true); return; }
-  const r = await doAction('giveCoins', uid, { amount });
-  if (r.ok) { toast('Начислено. Всего: ' + r.coins); }
-}
-
-function promptGiveCoins(uid) {
-  const v = prompt('Сколько монет выдать?', '1000');
-  if (!v) return;
-  const n = parseInt(v, 10);
-  if (!n || isNaN(n)) return;
-  doAction('giveCoins', uid, { amount: n });
-}
-
-function promptGiveSkin(uid) {
-  const v = prompt('ID скина (одно из): ' + SKIN_LIST.join(', '));
-  if (!v) return;
-  doAction('giveSkin', uid, { skinId: v.trim() });
-}
-
-function promptGiveAvatar(uid) {
-  const v = prompt('ID аватарки (число): ' + AVATAR_LIST.join(', '));
-  if (!v) return;
-  doAction('giveAvatar', uid, { avatarId: parseInt(v, 10) });
-}
-
-function promptGiveBg(uid) {
-  const v = prompt('ID фона: ' + BG_LIST.join(', '));
-  if (!v) return;
-  doAction('giveBackground', uid, { bgId: v.trim() });
-}
-
-function promptGiveTitle(uid) {
-  const v = prompt('ID титула: ' + TITLE_LIST.join(', '));
-  if (!v) return;
-  doAction('giveTitle', uid, { titleId: v.trim() });
-}
-
-function promptGiveEmoji(uid) {
-  const v = prompt('ID набора смайлов: ' + EMOJI_LIST.join(', '));
-  if (!v) return;
-  doAction('giveEmojiSet', uid, { setId: v.trim() });
-}
-
-function giveAllSkins(uid) {
-  if (!confirm('Выдать ВСЕ скины игроку ' + uid + '?')) return;
-  doAction('giveAllSkins', uid);
-}
-
-function doDelete(uid, name) {
-  if (!confirm('УДАЛИТЬ аккаунт ' + name + ' (' + uid + ')? Это действие необратимо.')) return;
-  doAction('delete', uid);
-}
-
-async function migrateAccount() {
-  const from = document.getElementById('mg-from').value.trim();
-  const to = document.getElementById('mg-to').value.trim();
-  if (!from || !to) { toast('Заполни оба поля', true); return; }
-  if (!confirm('Перенести данные: ' + from + ' → ' + to + '?\\nСтарый аккаунт будет удалён.')) return;
-  const r = await doAction('migrate', null, { from, to });
-  if (r.ok) {
-    toast('Перенесено. Обновлено ссылок: ' + r.refs);
-    document.getElementById('mg-from').value = '';
-    document.getElementById('mg-to').value = '';
-  }
-}
-</script>
-</body>
-</html>`);
-});
-
-  const today = todayStr();
-  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-
-  const activeToday = (stats.dailyActive[today] || []).length;
-  let activeWeek = 0, activeMonth = 0;
-  for (const day of Object.keys(stats.dailyActive)) {
-    if (day >= weekAgo) activeWeek += stats.dailyActive[day].length;
-    if (day >= monthAgo) activeMonth += stats.dailyActive[day].length;
-  }
-
-  const totalPlayers = Object.keys(players).length;
-  const totalGames = stats.totalGamesSolo + stats.totalGamesDuel + stats.totalGamesTournament;
   const avgScore = stats.totalGamesSolo > 0 ? Math.round(stats.totalScoreSolo / stats.totalGamesSolo) : 0;
 
-  const totalCoins = Object.keys(players).reduce((s, uid) => s + (players[uid].coins || 0), 0);
-  const totalSkinsOwned = Object.keys(players).reduce((s, uid) => s + (players[uid].skins || []).length, 0);
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    totalPlayers: totalPlayers,
+    online: online.size,
+    activeToday: activeToday,
+    activeWeek: activeWeek,
+    totalCoins: totalCoins,
+    bannedCount: bannedCount,
+    avgScore: avgScore,
+    stats: stats,
+    catalog: {
+      skins: Object.keys(SKIN_CATALOG),
+      avatars: Object.keys(AVATAR_CATALOG).map(function(x) { return parseInt(x, 10); }),
+      backgrounds: Object.keys(BACKGROUND_CATALOG),
+      titles: TITLE_DEFS.map(function(x) { return x.id; }),
+      emoji: Object.keys(EMOJI_SETS)
+    }
+  });
+});
+app.get('/admin/list-users', (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) { res.status(403).json({ error: 'forbidden' }); return; }
 
-  const html = `<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<title>Block Blast Duel — Аналитика</title>
-<style>
-body { font-family: system-ui, sans-serif; background: #0a0520; color: #fff; padding: 20px; max-width: 900px; margin: 0 auto; }
-h1 { color: #a55eea; margin-bottom: 20px; }
-h2 { color: #1e90ff; margin: 25px 0 10px; font-size: 18px; }
-.card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin-bottom: 10px; display: inline-block; margin-right: 10px; min-width: 140px; }
-.card .value { font-size: 28px; font-weight: 900; color: #ffd93b; }
-.card .label { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
-th { color: rgba(255,255,255,0.5); text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
-td.num { font-variant-numeric: tabular-nums; color: #ffd93b; font-weight: 700; }
-</style>
-</head>
-<body>
-<h1>📊 Block Blast Duel — Аналитика</h1>
+  const results = [];
+  for (const uid of Object.keys(players)) {
+    const p = players[uid];
+    results.push({
+      userId: uid,
+      name: p.name || 'Игрок',
+      coins: p.coins || 0,
+      rating: p.rating || 0,
+      bestScore: p.bestScore || 0,
+      banned: !!p.banned,
+      tgId: p.tgId || null,
+      games: (p.soloGames || 0) + (p.duelWins || 0) + (p.duelLosses || 0),
+      skins: (p.skins || []).length,
+      lastSeen: p.updatedAt || 0
+    });
+  }
 
-<h2>Общее</h2>
-<div>
-<div class="card"><div class="value">${totalPlayers}</div><div class="label">Всего игроков</div></div>
-<div class="card"><div class="value">${online.size}</div><div class="label">Онлайн сейчас</div></div>
-<div class="card"><div class="value">${totalGames}</div><div class="label">Сыграно игр</div></div>
-<div class="card"><div class="value">${avgScore}</div><div class="label">Средний счёт</div></div>
-<div class="card"><div class="value">${stats.maxScoreSolo}</div><div class="label">Макс. счёт</div></div>
-<div class="card"><div class="value">${totalCoins}</div><div class="label">Монет у игроков</div></div>
-</div>
+  results.sort(function(a, b) { return b.lastSeen - a.lastSeen; });
 
-<h2>Активность</h2>
-<div>
-<div class="card"><div class="value">${activeToday}</div><div class="label">Сегодня</div></div>
-<div class="card"><div class="value">${activeWeek}</div><div class="label">За 7 дней</div></div>
-<div class="card"><div class="value">${activeMonth}</div><div class="label">За 30 дней</div></div>
-</div>
-
-<h2>По режимам</h2>
-<table>
-<tr><th>Режим</th><th>Игр</th></tr>
-<tr><td>Соло</td><td class="num">${stats.totalGamesSolo}</td></tr>
-<tr><td>Дуэли</td><td class="num">${stats.totalGamesDuel}</td></tr>
-<tr><td>Турниры</td><td class="num">${stats.totalGamesTournament}</td></tr>
-</table>
-
-<h2>Вовлечение (сколько игроков доходит до N игр)</h2>
-<table>
-<tr><th>Игр сыграно</th><th>Игроков дошло</th></tr>
-${[1, 5, 10, 20, 50, 100].map(b => `<tr><td>${b}</td><td class="num">${stats.playersByGames[b] || 0}</td></tr>`).join('')}
-</table>
-
-<h2>Новые игроки по дням</h2>
-<table>
-<tr><th>Дата</th><th>Новых</th><th>Активных</th></tr>
-${Object.keys(stats.newPlayersByDay).sort().reverse().slice(0, 14).map(d =>
-    `<tr><td>${d}</td><td class="num">${stats.newPlayersByDay[d]}</td><td class="num">${(stats.dailyActive[d] || []).length}</td></tr>`
-  ).join('')}
-</table>
-
-<h2>Прочее</h2>
-<div>
-<div class="card"><div class="value">${stats.totalEmotes}</div><div class="label">Эмодзи отправлено</div></div>
-<div class="card"><div class="value">${stats.totalSkinsBought}</div><div class="label">Скинов куплено</div></div>
-<div class="card"><div class="value">${totalSkinsOwned}</div><div class="label">Скинов у игроков</div></div>
-</div>
-
-<p style="margin-top:30px;color:rgba(255,255,255,0.4);font-size:12px;">
-Обновлено: ${new Date().toISOString()} · МСК: ${new Date(Date.now() + 3 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19)}
-</p>
-</body>
-</html>`;
-  res.set('Content-Type', 'text/html; charset=utf-8');
-  res.send(html);
+  res.set('Cache-Control', 'no-store');
+  res.json({ results: results.slice(0, 100), total: results.length });
 });
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -1933,13 +1578,79 @@ app.get('/health', (req, res) => {
 // ============ SOCKET ============
 io.on('connection', (socket) => {
 
-  socket.on('syncProfile', async ({ userId, name, localRating, localBest, ref }, cb) => {
+  socket.on('syncProfile', async ({ userId, name, localRating, localBest, ref, tgId, vkId }, cb) => {
     await playersReady;
     if (!userId || typeof userId !== 'string' || userId.length > 64) { if (cb) cb({ error: 'bad_user_id' }); return; }
+        // Проверяем, была ли раньше связка этого ID с другим аккаунтом
+    try {
+      const linkedTo = await redis.get('bbd:linked:' + userId);
+      if (linkedTo && typeof linkedTo === 'string' && linkedTo !== userId) {
+        if (players[linkedTo]) {
+          socket.data.userId = linkedTo;
+          if (cb) cb({
+            profile: publicProfile(linkedTo),
+            isNew: false,
+            switchToId: linkedTo,
+            reason: 'linked',
+            season: getActiveSeasonal()
+          });
+          return;
+        } else {
+          // Целевой аккаунт удалён — чистим связь
+          await redis.del('bbd:linked:' + userId);
+        }
+      }
+    } catch (e) {
+      console.error('link check error:', e.message);
+    }
+    // 1. Если текущий профиль помечен linkedTo — переключаемся на целевой
+    if (players[userId] && players[userId].linkedTo) {
+      const target = players[userId].linkedTo;
+      if (players[target]) {
+        socket.data.userId = target;
+        if (cb) cb({
+          profile: publicProfile(target),
+          isNew: false,
+          switchToId: target,
+          reason: 'linked',
+          season: getActiveSeasonal()
+        });
+        return;
+      }
+    }
+
+    // 2. Если tgId уже привязан к другому профилю — переключаемся на него
+    if (tgId && typeof tgId === 'string') {
+      let linkedUid = null;
+      for (const uid of Object.keys(players)) {
+        if (uid === userId) continue;
+        if (players[uid] && players[uid].tgId === tgId) {
+          linkedUid = uid;
+          break;
+        }
+      }
+      if (linkedUid) {
+        // Помечаем текущий userId как linkedTo, не удаляя его
+        if (players[userId] && userId !== linkedUid) {
+          players[userId].linkedTo = linkedUid;
+          players[userId].updatedAt = Date.now();
+          savePlayers();
+        }
+        socket.data.userId = linkedUid;
+        if (cb) cb({
+          profile: publicProfile(linkedUid),
+          isNew: false,
+          switchToId: linkedUid,
+          reason: 'tg_linked',
+          season: getActiveSeasonal()
+        });
+        return;
+      }
+    }
     let p = players[userId];
     const isNew = !p;
     const incomingName = sanitizeName(name);
-    if (isNew) {
+      if (isNew) {
       p = {
         name: incomingName || ('Игрок-' + String(userId).slice(-4).toUpperCase()),
         rating: clamp(localRating || 0, 0, 100000),
@@ -1954,6 +1665,14 @@ io.on('connection', (socket) => {
         dailyQuests: null,
         referredBy: null, referralRewarded: false, referralCount: 0, referrals: [],
         puzzleBest: 0, puzzleLastDate: null, tournamentWins: [],
+        coinsSpent: 0, emoteCount: 0,
+        duelWinStreak: 0, duelBestWinStreak: 0,
+        tournamentsPlayed: 0,
+        emojiSets: ['classic'], activeEmojiSet: 'classic',
+        banned: false,
+        tgId: tgId || null,
+        vkId: vkId || null,
+        tgLinkBonusGiven: false,
         duelWins: 0, duelLosses: 0, soloGames: 0,
         updatedAt: Date.now()
       };
@@ -1962,6 +1681,16 @@ io.on('connection', (socket) => {
       if (ref && typeof ref === 'string' && ref !== userId) applyReferral(userId, ref);
     } else if (incomingName && incomingName !== p.name) {
       p.name = incomingName; p.updatedAt = Date.now();
+    }
+      // Обновляем vkId если пришёл
+    if (vkId && typeof vkId === 'string' && p.vkId !== vkId) {
+      p.vkId = vkId;
+      p.updatedAt = Date.now();
+    }
+    // Обновляем tgId если пришёл и отличается
+    if (tgId && typeof tgId === 'string' && p.tgId !== tgId) {
+      p.tgId = tgId;
+      p.updatedAt = Date.now();
     }
     migrateProfile(p, userId);
     if (p.banned) {
@@ -2225,6 +1954,147 @@ io.on('connection', (socket) => {
       if (cb) cb({ error: 'server_error' });
     }
   });
+  // ---- LINK TELEGRAM ----
+  socket.on('generateLinkCode', async ({ userId }, cb) => {
+    try {
+      await playersReady;
+      if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+      const p = players[userId];
+      if (!p) { if (cb) cb({ error: 'no_profile' }); return; }
+      const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const key = 'bbd:link:' + code;
+      await redis.set(key, JSON.stringify({ userId, createdAt: Date.now() }), { ex: 900 });
+      if (cb) cb({ code });
+    } catch (err) {
+      console.error('generateLinkCode error:', err);
+      if (cb) cb({ error: 'server_error' });
+    }
+  });
+
+   socket.on('applyLinkCode', async ({ currentUserId, tgId, code }, cb) => {
+    try {
+      await playersReady;
+      if (!currentUserId || !tgId || !code) { if (cb) cb({ error: 'bad_input' }); return; }
+
+      const key = 'bbd:link:' + String(code).toUpperCase().trim();
+      const raw = await redis.get(key);
+      if (!raw) { if (cb) cb({ error: 'invalid_code' }); return; }
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const browserUid = data.userId;
+      if (!browserUid) { if (cb) cb({ error: 'invalid_code' }); return; }
+
+      const browserP = players[browserUid];
+      if (!browserP) { if (cb) cb({ error: 'browser_profile_not_found' }); return; }
+
+      // Ищем, к какому профилю привязан этот tgId
+      let targetUid = null;
+      for (const uid of Object.keys(players)) {
+        if (players[uid] && players[uid].tgId === tgId) {
+          targetUid = uid;
+          break;
+        }
+      }
+
+      let mergePerformed = false;
+      let bonusGiven = false;
+
+      if (targetUid && targetUid !== browserUid) {
+        // === Есть TG-профиль ===
+        const target = players[targetUid];
+        const source = browserP;
+
+        // Проверяем, пустой ли TG-аккаунт
+        const targetGames = (target.soloGames || 0) + (target.duelWins || 0) + (target.duelLosses || 0);
+        const targetCoins = target.coins || 0;
+        const isTargetEmpty = (targetGames === 0 && targetCoins <= 50);
+
+        if (isTargetEmpty) {
+          // TG пустой → сливаем данные из браузера
+          target.coins = (target.coins || 0) + (source.coins || 0);
+          if ((source.rating || 0) > (target.rating || 0)) target.rating = source.rating;
+          if ((source.bestScore || 0) > (target.bestScore || 0)) target.bestScore = source.bestScore;
+          target.soloGames = (target.soloGames || 0) + (source.soloGames || 0);
+          target.duelWins = (target.duelWins || 0) + (source.duelWins || 0);
+          target.duelLosses = (target.duelLosses || 0) + (source.duelLosses || 0);
+          target.stats = target.stats || {};
+          const srcStats = source.stats || {};
+          for (const k in srcStats) {
+            if (typeof srcStats[k] === 'number') {
+              target.stats[k] = (target.stats[k] || 0) + srcStats[k];
+            }
+          }
+          const mergeArrays = function(a, b) {
+            const set = {};
+            (a || []).forEach(function(x) { set[x] = 1; });
+            (b || []).forEach(function(x) { set[x] = 1; });
+            return Object.keys(set);
+          };
+          target.skins = mergeArrays(target.skins, source.skins);
+          target.backgrounds = mergeArrays(target.backgrounds, source.backgrounds);
+          target.titles = mergeArrays(target.titles, source.titles);
+          target.emojiSets = mergeArrays(target.emojiSets || ['classic'], source.emojiSets || ['classic']);
+          target.achievements = mergeArrays(target.achievements, source.achievements);
+          target.tournamentWins = mergeArrays(target.tournamentWins, source.tournamentWins);
+          const avSet = {};
+          (target.avatars || []).forEach(function(x) { avSet[x] = 1; });
+          (source.avatars || []).forEach(function(x) { avSet[x] = 1; });
+          target.avatars = Object.keys(avSet).map(function(x) { return parseInt(x, 10); });
+          target.updatedAt = Date.now();
+          mergePerformed = true;
+        }
+        // Если TG не пустой — просто НЕ сливаем (защита от абьюза)
+
+        // Сохраняем связь в Redis
+        await redis.set('bbd:linked:' + browserUid, targetUid);
+        if (currentUserId && currentUserId !== browserUid) {
+          await redis.set('bbd:linked:' + currentUserId, targetUid);
+        }
+
+        // Удаляем браузерный профиль
+        delete players[browserUid];
+
+      } else if (!targetUid) {
+        // === Новый tgId — привязываем браузерный профиль ===
+        browserP.tgId = tgId;
+        browserP.updatedAt = Date.now();
+        targetUid = browserUid;
+
+        if (currentUserId !== browserUid && players[currentUserId]) {
+          await redis.set('bbd:linked:' + currentUserId, browserUid);
+          delete players[currentUserId];
+        }
+      } else {
+        // targetUid === browserUid — уже привязан
+        targetUid = browserUid;
+      }
+
+      // Бонус +50 за первую привязку
+      const finalP = players[targetUid];
+      if (finalP && !finalP.tgLinkBonusGiven) {
+        finalP.coins = (finalP.coins || 0) + 50;
+        finalP.tgLinkBonusGiven = true;
+        bonusGiven = true;
+      }
+
+      await redis.del(key);
+      savePlayers();
+
+      if (cb) cb({
+        ok: true,
+        profile: publicProfile(targetUid),
+        switchToId: targetUid,
+        bonusGiven: bonusGiven,
+        bonus: bonusGiven ? 50 : 0,
+        merged: mergePerformed
+      });
+    } catch (err) {
+      console.error('applyLinkCode error:', err);
+      if (cb) cb({ error: 'server_error' });
+    }
+  });
+
+      // Ищем, не привязан ли уже tgId к другому профилю
+     
   socket.on('getAchievements', async ({ userId }, cb) => {
     await playersReady;
     const p = players[userId];
