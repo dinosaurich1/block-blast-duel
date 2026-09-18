@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -9,7 +10,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   pingTimeout: 25000, pingInterval: 10000, maxHttpBufferSize: 1e6
 });
-
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
   if (req.path === '/' || req.path.endsWith('.html')) {
@@ -64,14 +65,6 @@ const playersReady = (async () => {
         if (typeof p !== 'object' || p === null) { delete players[uid]; continue; }
         migrateProfile(p, uid);
       }
-      if (typeof p.lastGameAt !== 'number') p.lastGameAt = 0;
-      if (!Array.isArray(p.emojiSets)) p.emojiSets = ['classic'];
-      if (typeof p.activeEmojiSet !== 'string') p.activeEmojiSet = 'classic';
-      if (typeof p.coinsSpent !== 'number') p.coinsSpent = 0;
-      if (typeof p.emoteCount !== 'number') p.emoteCount = 0;
-      if (typeof p.duelWinStreak !== 'number') p.duelWinStreak = 0;
-      if (typeof p.duelBestWinStreak !== 'number') p.duelBestWinStreak = 0;
-      if (typeof p.tournamentsPlayed !== 'number') p.tournamentsPlayed = 0;
       console.log('Loaded ' + Object.keys(players).length + ' profiles');
     }
     // Турнир
@@ -121,6 +114,9 @@ function migrateProfile(p, uid) {
   if (typeof p.puzzleLastDate !== 'string') p.puzzleLastDate = null;
   if (!Array.isArray(p.tournamentWins)) p.tournamentWins = [];
   if (typeof p.name !== 'string' || !p.name.trim()) p.name = 'Игрок-' + String(uid || '').slice(-4).toUpperCase();
+  if (typeof p.banned !== 'boolean') p.banned = false;
+  if (typeof p.tgId !== 'string') p.tgId = null;
+  if (typeof p.lastGameAt !== 'number') p.lastGameAt = 0;
 }
 
 let saveTimer = null;
@@ -454,6 +450,8 @@ function publicProfile(userId) {
     referralRewarded: !!p.referralRewarded,
     puzzleBest: p.puzzleBest || 0,
     emojiSets: (p.emojiSets || ['classic']).slice(),
+    banned: !!p.banned,
+    tgId: p.tgId || null,
     activeEmojiSet: p.activeEmojiSet || 'classic',
     coinsSpent: p.coinsSpent || 0,
     emoteCount: p.emoteCount || 0,
@@ -1097,6 +1095,106 @@ app.get('/api/puzzle', (req, res) => {
     res.json({ date: dateStr, sequence });
   } catch (e) { res.status(500).json({ error: 'server_error' }); }
 });
+app.get('/admin/migrate-account', async (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) { res.status(403).send('Forbidden'); return; }
+
+  const from = req.query.from;
+  const to = req.query.to;
+  if (!from || !to) { res.status(400).send('Need from and to'); return; }
+  if (from === to) { res.status(400).send('Same id'); return; }
+
+  const oldP = players[from];
+  if (!oldP) { res.status(404).send('Source profile not found: ' + from); return; }
+
+  // Копируем все данные из старого в новый
+  const newP = players[to] || {};
+  newP.name = oldP.name;
+  newP.rating = oldP.rating || 0;
+  newP.bestScore = oldP.bestScore || 0;
+  newP.coins = oldP.coins || 0;
+  newP.skins = (oldP.skins || ['classic']).slice();
+  newP.activeSkin = oldP.activeSkin || 'classic';
+  newP.achievements = (oldP.achievements || []).slice();
+  newP.titles = (oldP.titles || ['rookie']).slice();
+  newP.activeTitle = oldP.activeTitle || 'rookie';
+  newP.backgrounds = (oldP.backgrounds || ['default']).slice();
+  newP.activeBackground = oldP.activeBackground || 'default';
+  newP.avatars = (oldP.avatars || [0, 1]).slice();
+  newP.activeAvatar = typeof oldP.activeAvatar === 'number' ? oldP.activeAvatar : 0;
+  newP.emojiSets = (oldP.emojiSets || ['classic']).slice();
+  newP.activeEmojiSet = oldP.activeEmojiSet || 'classic';
+  newP.stats = Object.assign({}, oldP.stats || {});
+  newP.duelWins = oldP.duelWins || 0;
+  newP.duelLosses = oldP.duelLosses || 0;
+  newP.soloGames = oldP.soloGames || 0;
+  newP.puzzleBest = oldP.puzzleBest || 0;
+  newP.puzzleLastDate = oldP.puzzleLastDate || null;
+  newP.tournamentWins = (oldP.tournamentWins || []).slice();
+  newP.referralCount = oldP.referralCount || 0;
+  newP.coinsSpent = oldP.coinsSpent || 0;
+  newP.emoteCount = oldP.emoteCount || 0;
+  newP.duelWinStreak = oldP.duelWinStreak || 0;
+  newP.duelBestWinStreak = oldP.duelBestWinStreak || 0;
+  newP.tournamentsPlayed = oldP.tournamentsPlayed || 0;
+  newP.lastGameAt = oldP.lastGameAt || 0;
+  newP.referredBy = oldP.referredBy || null;
+  newP.referralRewarded = oldP.referralRewarded || false;
+  newP.referrals = (oldP.referrals || []).slice();
+  newP.dailyQuests = oldP.dailyQuests || null;
+  newP.updatedAt = Date.now();
+
+  // Друзья: переносим и обновляем все ссылки
+  newP.friends = (oldP.friends || []).slice();
+  newP.friendRequests = (oldP.friendRequests || []).slice();
+
+  // Обновляем ссылки у всех, кто знал старый ID
+  const updatedRefs = [];
+  for (const uid of Object.keys(players)) {
+    if (uid === from || uid === to) continue;
+    const p = players[uid];
+    let changed = false;
+    if (Array.isArray(p.friends) && p.friends.indexOf(from) !== -1) {
+      p.friends = p.friends.filter(function(id) { return id !== from; });
+      if (p.friends.indexOf(to) === -1) p.friends.push(to);
+      changed = true;
+    }
+    if (Array.isArray(p.friendRequests) && p.friendRequests.indexOf(from) !== -1) {
+      p.friendRequests = p.friendRequests.filter(function(id) { return id !== from; });
+      if (p.friendRequests.indexOf(to) === -1) p.friendRequests.push(to);
+      changed = true;
+    }
+    if (Array.isArray(p.referrals) && p.referrals.indexOf(from) !== -1) {
+      p.referrals = p.referrals.map(function(id) { return id === from ? to : id; });
+      changed = true;
+    }
+    if (p.referredBy === from) {
+      p.referredBy = to;
+      changed = true;
+    }
+    if (changed) {
+      p.updatedAt = Date.now();
+      updatedRefs.push(uid);
+    }
+  }
+
+  players[to] = newP;
+  delete players[from];
+
+  savePlayers();
+
+  res.json({
+    ok: true,
+    from: from,
+    to: to,
+    name: newP.name,
+    coins: newP.coins,
+    rating: newP.rating,
+    games: newP.soloGames + newP.duelWins + newP.duelLosses,
+    referencesUpdated: updatedRefs.length,
+    referencesList: updatedRefs
+  });
+});
 app.get('/admin/give-coins', async (req, res) => {
   const secret = process.env.ADMIN_SECRET || 'change-me';
   if (req.query.key !== secret) {
@@ -1119,12 +1217,614 @@ app.get('/admin/give-coins', async (req, res) => {
   savePlayers();
   res.json({ ok: true, userId, coins: p.coins });
 });
-app.get('/admin/stats', (req, res) => {
+// ============ ADMIN: FIND USER ============
+app.get('/admin/find-user', (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) { res.status(403).json({ error: 'forbidden' }); return; }
+  const q = String(req.query.q || '').toLowerCase().trim();
+  if (!q || q.length < 2) { res.json({ results: [] }); return; }
+  const results = [];
+  for (const uid of Object.keys(players)) {
+    const p = players[uid];
+    if (uid.toLowerCase().indexOf(q) !== -1 || (p.name || '').toLowerCase().indexOf(q) !== -1) {
+      results.push({
+        userId: uid,
+        name: p.name,
+        coins: p.coins || 0,
+        rating: p.rating || 0,
+        bestScore: p.bestScore || 0,
+        banned: !!p.banned,
+        tgId: p.tgId || null,
+        games: (p.soloGames || 0) + (p.duelWins || 0) + (p.duelLosses || 0),
+        skins: (p.skins || []).length,
+        lastSeen: p.updatedAt || 0
+      });
+    }
+    if (results.length >= 50) break;
+  }
+  results.sort(function(a, b) { return b.lastSeen - a.lastSeen; });
+  res.json({ results: results });
+});
+
+// ============ ADMIN: GET USER DETAIL ============
+app.get('/admin/user', (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  if (req.query.key !== secret) { res.status(403).json({ error: 'forbidden' }); return; }
+  const userId = String(req.query.userId || '');
+  const p = players[userId];
+  if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+  res.json({ ok: true, userId: userId, profile: p });
+});
+
+// ============ ADMIN: ACTION ============
+app.post('/admin/action', async (req, res) => {
+  const secret = process.env.ADMIN_SECRET || 'change-me';
+  const key = req.query.key || (req.body && req.body.key);
+  if (key !== secret) { res.status(403).json({ error: 'forbidden' }); return; }
+
+  const action = req.body.action;
+  const userId = req.body.userId;
+
+  try {
+    // ----- GIVE COINS -----
+    if (action === 'giveCoins') {
+      const amount = parseInt(req.body.amount, 10);
+      if (!userId || !amount) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      p.coins = (p.coins || 0) + amount;
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, coins: p.coins });
+      return;
+    }
+
+    // ----- SET COINS -----
+    if (action === 'setCoins') {
+      const amount = parseInt(req.body.amount, 10);
+      if (!userId || isNaN(amount) || amount < 0) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      p.coins = amount;
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, coins: p.coins });
+      return;
+    }
+
+    // ----- SET RATING -----
+    if (action === 'setRating') {
+      const rating = parseInt(req.body.rating, 10);
+      if (!userId || isNaN(rating) || rating < 0) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      p.rating = rating;
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, rating: p.rating });
+      return;
+    }
+
+    // ----- GIVE SKIN -----
+    if (action === 'giveSkin') {
+      const skinId = req.body.skinId;
+      if (!userId || !skinId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      if (!Array.isArray(p.skins)) p.skins = ['classic'];
+      if (p.skins.indexOf(skinId) === -1) p.skins.push(skinId);
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, skins: p.skins });
+      return;
+    }
+
+    // ----- GIVE AVATAR -----
+    if (action === 'giveAvatar') {
+      const avatarId = parseInt(req.body.avatarId, 10);
+      if (!userId || isNaN(avatarId)) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      if (!Array.isArray(p.avatars)) p.avatars = [0, 1];
+      if (p.avatars.indexOf(avatarId) === -1) p.avatars.push(avatarId);
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, avatars: p.avatars });
+      return;
+    }
+
+    // ----- GIVE BACKGROUND -----
+    if (action === 'giveBackground') {
+      const bgId = req.body.bgId;
+      if (!userId || !bgId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      if (!Array.isArray(p.backgrounds)) p.backgrounds = ['default'];
+      if (p.backgrounds.indexOf(bgId) === -1) p.backgrounds.push(bgId);
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, backgrounds: p.backgrounds });
+      return;
+    }
+
+    // ----- GIVE TITLE -----
+    if (action === 'giveTitle') {
+      const titleId = req.body.titleId;
+      if (!userId || !titleId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      if (!Array.isArray(p.titles)) p.titles = ['rookie'];
+      if (p.titles.indexOf(titleId) === -1) p.titles.push(titleId);
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, titles: p.titles });
+      return;
+    }
+
+    // ----- GIVE EMOJI SET -----
+    if (action === 'giveEmojiSet') {
+      const setId = req.body.setId;
+      if (!userId || !setId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      if (!Array.isArray(p.emojiSets)) p.emojiSets = ['classic'];
+      if (p.emojiSets.indexOf(setId) === -1) p.emojiSets.push(setId);
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, emojiSets: p.emojiSets });
+      return;
+    }
+
+    // ----- GIVE ALL SKINS -----
+    if (action === 'giveAllSkins') {
+      if (!userId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      const all = Object.keys(SKIN_CATALOG);
+      p.skins = all.slice();
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, count: all.length });
+      return;
+    }
+
+    // ----- BAN / UNBAN -----
+    if (action === 'ban') {
+      if (!userId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      p.banned = true;
+      p.updatedAt = Date.now();
+      // Отключаем сессию онлайн, если есть
+      const o = online.get(userId);
+      if (o && o.socket) {
+        o.socket.emit('banned');
+        try { o.socket.disconnect(true); } catch (e) {}
+      }
+      online.delete(userId);
+      savePlayers();
+      res.json({ ok: true, banned: true });
+      return;
+    }
+
+    if (action === 'unban') {
+      if (!userId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      p.banned = false;
+      p.updatedAt = Date.now();
+      savePlayers();
+      res.json({ ok: true, banned: false });
+      return;
+    }
+
+    // ----- DELETE -----
+    if (action === 'delete') {
+      if (!userId) { res.status(400).json({ error: 'bad_input' }); return; }
+      const p = players[userId];
+      if (!p) { res.status(404).json({ error: 'not_found' }); return; }
+      // Обновляем ссылки друзей
+      for (const uid of Object.keys(players)) {
+        if (uid === userId) continue;
+        const other = players[uid];
+        if (Array.isArray(other.friends)) other.friends = other.friends.filter(function(id) { return id !== userId; });
+        if (Array.isArray(other.friendRequests)) other.friendRequests = other.friendRequests.filter(function(id) { return id !== userId; });
+        if (Array.isArray(other.referrals)) other.referrals = other.referrals.filter(function(id) { return id !== userId; });
+        if (other.referredBy === userId) other.referredBy = null;
+      }
+      online.delete(userId);
+      delete players[userId];
+      savePlayers();
+      res.json({ ok: true, deleted: true });
+      return;
+    }
+
+    // ----- MIGRATE -----
+    if (action === 'migrate') {
+      const from = req.body.from;
+      const to = req.body.to;
+      if (!from || !to || from === to) { res.status(400).json({ error: 'bad_input' }); return; }
+      const oldP = players[from];
+      if (!oldP) { res.status(404).json({ error: 'source_not_found' }); return; }
+
+      const newP = players[to] || {};
+      // Копируем все поля
+      Object.assign(newP, JSON.parse(JSON.stringify(oldP)));
+      newP.updatedAt = Date.now();
+
+      // Обновляем ссылки
+      let refs = 0;
+      for (const uid of Object.keys(players)) {
+        if (uid === from || uid === to) continue;
+        const p = players[uid];
+        let changed = false;
+        if (Array.isArray(p.friends) && p.friends.indexOf(from) !== -1) {
+          p.friends = p.friends.filter(function(id) { return id !== from; });
+          if (p.friends.indexOf(to) === -1) p.friends.push(to);
+          changed = true;
+        }
+        if (Array.isArray(p.friendRequests) && p.friendRequests.indexOf(from) !== -1) {
+          p.friendRequests = p.friendRequests.filter(function(id) { return id !== from; });
+          if (p.friendRequests.indexOf(to) === -1) p.friendRequests.push(to);
+          changed = true;
+        }
+        if (Array.isArray(p.referrals) && p.referrals.indexOf(from) !== -1) {
+          p.referrals = p.referrals.map(function(id) { return id === from ? to : id; });
+          changed = true;
+        }
+        if (p.referredBy === from) { p.referredBy = to; changed = true; }
+        if (changed) { p.updatedAt = Date.now(); refs++; }
+      }
+
+      players[to] = newP;
+      delete players[from];
+      savePlayers();
+      res.json({ ok: true, from: from, to: to, refs: refs });
+      return;
+    }
+
+    res.status(400).json({ error: 'unknown_action' });
+  } catch (err) {
+    console.error('Admin action error:', err);
+    res.status(500).json({ error: 'server_error', message: err.message });
+  }
+});
+app.get('/admin', (req, res) => {
   const secret = process.env.ADMIN_SECRET || 'change-me';
   if (req.query.key !== secret) {
-    res.status(403).send('Forbidden. Use ?key=YOUR_ADMIN_SECRET');
+    res.status(403).send('Forbidden. Add ?key=YOUR_ADMIN_SECRET to URL');
     return;
   }
+
+  const today = todayStr();
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  const activeToday = (stats.dailyActive[today] || []).length;
+  let activeWeek = 0, activeMonth = 0;
+  for (const day of Object.keys(stats.dailyActive)) {
+    if (day >= weekAgo) activeWeek += stats.dailyActive[day].length;
+    if (day >= monthAgo) activeMonth += stats.dailyActive[day].length;
+  }
+
+  const totalPlayers = Object.keys(players).length;
+  const totalGames = stats.totalGamesSolo + stats.totalGamesDuel + stats.totalGamesTournament;
+  const avgScore = stats.totalGamesSolo > 0 ? Math.round(stats.totalScoreSolo / stats.totalGamesSolo) : 0;
+  const totalCoins = Object.keys(players).reduce(function(s, uid) { return s + (players[uid].coins || 0); }, 0);
+  const bannedCount = Object.keys(players).filter(function(uid) { return players[uid].banned; }).length;
+
+  // ID списка скинов и аватарок для селектов
+  const skinList = Object.keys(SKIN_CATALOG);
+  const avatarList = Object.keys(AVATAR_CATALOG).map(function(x) { return parseInt(x, 10); });
+  const bgList = Object.keys(BACKGROUND_CATALOG);
+  const titleList = TITLE_DEFS.map(function(x) { return x.id; });
+  const emojiList = Object.keys(EMOJI_SETS);
+
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin · Block Blast Duel</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#0a0520;color:#fff;font-size:14px}
+.header{background:linear-gradient(135deg,#a55eea,#1e90ff);padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+.header h1{margin:0;font-size:20px}
+.header .badge{font-size:12px;opacity:.8}
+.tabs{display:flex;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.1);padding:0 24px}
+.tabs button{background:none;border:none;color:rgba(255,255,255,.6);padding:14px 20px;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
+.tabs button.active{color:#fff;border-bottom-color:#a55eea}
+.content{padding:24px;max-width:1200px;margin:0 auto}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px}
+.card .value{font-size:28px;font-weight:900;color:#ffd93b}
+.card .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.5);margin-top:4px}
+h2{font-size:16px;color:#a55eea;margin:24px 0 12px}
+input,select,button{font-family:inherit;font-size:13px}
+input[type=text],input[type=number],select{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;outline:none;width:100%}
+input:focus,select:focus{border-color:#1e90ff}
+.btn{padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-weight:700;transition:transform .1s;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#a55eea,#1e90ff);color:#fff}
+.btn-danger{background:#ff4757;color:#fff}
+.btn-warn{background:#ffa502;color:#000}
+.btn-success{background:#2ed573;color:#000}
+.btn-secondary{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.15)}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.row>input,.row>select{flex:1;min-width:120px}
+.user-list{margin-top:16px}
+.user-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin-bottom:8px}
+.user-item.banned{border-color:#ff4757;background:rgba(255,71,87,.08)}
+.user-item .uid{font-family:monospace;font-size:11px;color:rgba(255,255,255,.4);word-break:break-all}
+.user-item .name{font-size:15px;font-weight:700;margin:4px 0}
+.user-item .meta{font-size:12px;color:rgba(255,255,255,.6);display:flex;gap:14px;flex-wrap:wrap}
+.user-item .actions{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.user-item .actions button{padding:6px 12px;font-size:12px;border-radius:8px}
+.user-item .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800}
+.tag-banned{background:#ff4757;color:#fff}
+.tag-tg{background:#229ED9;color:#fff}
+.panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;margin-top:16px}
+.panel h3{margin:0 0 12px;font-size:14px;color:#1e90ff}
+.toast{position:fixed;top:20px;right:20px;background:#2ed573;color:#000;padding:12px 20px;border-radius:10px;font-weight:700;opacity:0;transform:translateY(-20px);transition:all .3s;z-index:999}
+.toast.show{opacity:1;transform:none}
+.toast.error{background:#ff4757;color:#fff}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🎛️ Block Blast Duel · Admin</h1>
+  <div class="badge">Игроков: ${totalPlayers} · Онлайн: ${online.size}</div>
+</div>
+<div class="tabs">
+  <button class="active" data-tab="stats">📊 Статистика</button>
+  <button data-tab="players">👥 Игроки</button>
+  <button data-tab="tools">🛠️ Инструменты</button>
+</div>
+<div class="content">
+
+<div class="tab-content active" id="tab-stats">
+  <div class="grid">
+    <div class="card"><div class="value">${totalPlayers}</div><div class="label">Всего игроков</div></div>
+    <div class="card"><div class="value">${online.size}</div><div class="label">Онлайн</div></div>
+    <div class="card"><div class="value">${activeToday}</div><div class="label">Активных сегодня</div></div>
+    <div class="card"><div class="value">${activeWeek}</div><div class="label">За 7 дней</div></div>
+    <div class="card"><div class="value">${totalGames}</div><div class="label">Сыграно игр</div></div>
+    <div class="card"><div class="value">${avgScore}</div><div class="label">Средний счёт</div></div>
+    <div class="card"><div class="value">${stats.maxScoreSolo}</div><div class="label">Макс. счёт</div></div>
+    <div class="card"><div class="value">${totalCoins}</div><div class="label">Монет у игроков</div></div>
+    <div class="card"><div class="value">${bannedCount}</div><div class="label">Забанено</div></div>
+  </div>
+
+  <h2>По режимам</h2>
+  <div class="grid">
+    <div class="card"><div class="value">${stats.totalGamesSolo}</div><div class="label">Соло</div></div>
+    <div class="card"><div class="value">${stats.totalGamesDuel}</div><div class="label">Дуэли</div></div>
+    <div class="card"><div class="value">${stats.totalGamesTournament}</div><div class="label">Турниры</div></div>
+  </div>
+
+  <h2>Вовлечение</h2>
+  <table style="width:100%;border-collapse:collapse">
+    <tr><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Игр сыграно</th><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Дошло игроков</th></tr>
+    ${[1, 5, 10, 20, 50, 100].map(function(b) { return '<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">' + b + '</td><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);color:#ffd93b;font-weight:700">' + (stats.playersByGames[b] || 0) + '</td></tr>'; }).join('')}
+  </table>
+
+  <h2>Новые игроки по дням</h2>
+  <table style="width:100%;border-collapse:collapse">
+    <tr><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Дата</th><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Новых</th><th style="text-align:left;padding:8px;color:rgba(255,255,255,.5);font-size:11px;text-transform:uppercase">Активных</th></tr>
+    ${Object.keys(stats.newPlayersByDay).sort().reverse().slice(0, 14).map(function(d) { return '<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">' + d + '</td><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);color:#ffd93b">' + stats.newPlayersByDay[d] + '</td><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">' + (stats.dailyActive[d] || []).length + '</td></tr>'; }).join('')}
+  </table>
+
+  <h2>Прочее</h2>
+  <div class="grid">
+    <div class="card"><div class="value">${stats.totalEmotes}</div><div class="label">Эмодзи</div></div>
+    <div class="card"><div class="value">${stats.totalSkinsBought}</div><div class="label">Скинов куплено</div></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-players">
+  <div class="row">
+    <input type="text" id="searchInput" placeholder="Поиск по ID или нику...">
+    <button class="btn btn-primary" onclick="searchUsers()">Найти</button>
+  </div>
+  <div id="userList" class="user-list"></div>
+</div>
+
+<div class="tab-content" id="tab-tools">
+  <div class="panel">
+    <h3>💰 Выдать монеты</h3>
+    <div class="row">
+      <input type="text" id="gc-uid" placeholder="User ID (u_xxx или tg_xxx)">
+      <input type="number" id="gc-amount" placeholder="Сумма" value="1000">
+      <button class="btn btn-primary" onclick="giveCoins()">Выдать</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>🔄 Перенос аккаунта</h3>
+    <div class="row">
+      <input type="text" id="mg-from" placeholder="Из ID (старый)">
+      <input type="text" id="mg-to" placeholder="В ID (новый)">
+      <button class="btn btn-warn" onclick="migrateAccount()">Перенести</button>
+    </div>
+    <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:8px">Данные из старого ID перезапишут новый. Друзья и рефералы обновятся автоматически.</div>
+  </div>
+
+  <div class="panel">
+    <h3>🛒 Каталог для выдачи</h3>
+    <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.6">
+      <b>Скины:</b> ${skinList.join(', ')}<br>
+      <b>Аватарки:</b> ${avatarList.join(', ')}<br>
+      <b>Фоны:</b> ${bgList.join(', ')}<br>
+      <b>Титулы:</b> ${titleList.join(', ')}<br>
+      <b>Смайлы:</b> ${emojiList.join(', ')}
+    </div>
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = ${JSON.stringify(secret)};
+const SKIN_LIST = ${JSON.stringify(skinList)};
+const BG_LIST = ${JSON.stringify(bgList)};
+const TITLE_LIST = ${JSON.stringify(titleList)};
+const EMOJI_LIST = ${JSON.stringify(emojiList)};
+const AVATAR_LIST = ${JSON.stringify(avatarList)};
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+document.querySelectorAll('.tabs button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+  };
+});
+
+async function searchUsers() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q.length < 2) { toast('Минимум 2 символа', true); return; }
+  const res = await fetch('/admin/find-user?key=' + KEY + '&q=' + encodeURIComponent(q));
+  const data = await res.json();
+  renderUsers(data.results || []);
+}
+
+function renderUsers(users) {
+  const wrap = document.getElementById('userList');
+  if (!users.length) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.4)">Никого не найдено</div>'; return; }
+  wrap.innerHTML = users.map(u => {
+    const tags = [];
+    if (u.banned) tags.push('<span class="tag tag-banned">BANNED</span>');
+    if (u.tgId) tags.push('<span class="tag tag-tg">TG</span>');
+    const lastSeen = u.lastSeen ? new Date(u.lastSeen).toLocaleString('ru') : '—';
+    return '<div class="user-item ' + (u.banned ? 'banned' : '') + '">' +
+      '<div class="uid">' + u.userId + ' ' + tags.join(' ') + '</div>' +
+      '<div class="name">' + escapeHtml(u.name) + '</div>' +
+      '<div class="meta">' +
+        '<span>💰 ' + u.coins + '</span>' +
+        '<span>⭐ ' + u.rating + '</span>' +
+        '<span>🏆 ' + u.bestScore + '</span>' +
+        '<span>🎮 ' + u.games + ' игр</span>' +
+        '<span>🎨 ' + u.skins + ' скинов</span>' +
+        '<span>🕐 ' + lastSeen + '</span>' +
+      '</div>' +
+      '<div class="actions">' +
+        '<button class="btn btn-primary" onclick="promptGiveCoins(\\'' + u.userId + '\\')">💰 Монеты</button>' +
+        '<button class="btn btn-primary" onclick="promptGiveSkin(\\'' + u.userId + '\\')">🎨 Скин</button>' +
+        '<button class="btn btn-primary" onclick="promptGiveAvatar(\\'' + u.userId + '\\')">👾 Аватар</button>' +
+        '<button class="btn btn-primary" onclick="promptGiveBg(\\'' + u.userId + '\\')">🖼️ Фон</button>' +
+        '<button class="btn btn-primary" onclick="promptGiveTitle(\\'' + u.userId + '\\')">📛 Титул</button>' +
+        '<button class="btn btn-primary" onclick="promptGiveEmoji(\\'' + u.userId + '\\')">😀 Смайлы</button>' +
+        '<button class="btn btn-success" onclick="giveAllSkins(\\'' + u.userId + '\\')">✨ Все скины</button>' +
+        (u.banned
+          ? '<button class="btn btn-success" onclick="doAction(\\'unban\\', \\'' + u.userId + '\\')">🔓 Разбанить</button>'
+          : '<button class="btn btn-warn" onclick="doAction(\\'ban\\', \\'' + u.userId + '\\')">🚫 Забанить</button>') +
+        '<button class="btn btn-danger" onclick="doDelete(\\'' + u.userId + '\\', \\'' + escapeHtml(u.name).replace(/'/g, '') + '\\')">🗑 Удалить</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function doAction(action, userId, extra) {
+  const body = Object.assign({ action, userId }, extra || {});
+  const res = await fetch('/admin/action?key=' + KEY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.ok) { toast('Готово'); searchUsers(); }
+  else { toast(data.error || 'Ошибка', true); }
+  return data;
+}
+
+async function giveCoins() {
+  const uid = document.getElementById('gc-uid').value.trim();
+  const amount = parseInt(document.getElementById('gc-amount').value, 10);
+  if (!uid || !amount) { toast('Заполни оба поля', true); return; }
+  const r = await doAction('giveCoins', uid, { amount });
+  if (r.ok) { toast('Начислено. Всего: ' + r.coins); }
+}
+
+function promptGiveCoins(uid) {
+  const v = prompt('Сколько монет выдать?', '1000');
+  if (!v) return;
+  const n = parseInt(v, 10);
+  if (!n || isNaN(n)) return;
+  doAction('giveCoins', uid, { amount: n });
+}
+
+function promptGiveSkin(uid) {
+  const v = prompt('ID скина (одно из): ' + SKIN_LIST.join(', '));
+  if (!v) return;
+  doAction('giveSkin', uid, { skinId: v.trim() });
+}
+
+function promptGiveAvatar(uid) {
+  const v = prompt('ID аватарки (число): ' + AVATAR_LIST.join(', '));
+  if (!v) return;
+  doAction('giveAvatar', uid, { avatarId: parseInt(v, 10) });
+}
+
+function promptGiveBg(uid) {
+  const v = prompt('ID фона: ' + BG_LIST.join(', '));
+  if (!v) return;
+  doAction('giveBackground', uid, { bgId: v.trim() });
+}
+
+function promptGiveTitle(uid) {
+  const v = prompt('ID титула: ' + TITLE_LIST.join(', '));
+  if (!v) return;
+  doAction('giveTitle', uid, { titleId: v.trim() });
+}
+
+function promptGiveEmoji(uid) {
+  const v = prompt('ID набора смайлов: ' + EMOJI_LIST.join(', '));
+  if (!v) return;
+  doAction('giveEmojiSet', uid, { setId: v.trim() });
+}
+
+function giveAllSkins(uid) {
+  if (!confirm('Выдать ВСЕ скины игроку ' + uid + '?')) return;
+  doAction('giveAllSkins', uid);
+}
+
+function doDelete(uid, name) {
+  if (!confirm('УДАЛИТЬ аккаунт ' + name + ' (' + uid + ')? Это действие необратимо.')) return;
+  doAction('delete', uid);
+}
+
+async function migrateAccount() {
+  const from = document.getElementById('mg-from').value.trim();
+  const to = document.getElementById('mg-to').value.trim();
+  if (!from || !to) { toast('Заполни оба поля', true); return; }
+  if (!confirm('Перенести данные: ' + from + ' → ' + to + '?\\nСтарый аккаунт будет удалён.')) return;
+  const r = await doAction('migrate', null, { from, to });
+  if (r.ok) {
+    toast('Перенесено. Обновлено ссылок: ' + r.refs);
+    document.getElementById('mg-from').value = '';
+    document.getElementById('mg-to').value = '';
+  }
+}
+</script>
+</body>
+</html>`);
+});
 
   const today = todayStr();
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -1264,11 +1964,16 @@ io.on('connection', (socket) => {
       p.name = incomingName; p.updatedAt = Date.now();
     }
     migrateProfile(p, userId);
+    if (p.banned) {
+      socket.data.userId = userId;
+      if (cb) cb({ error: 'banned', profile: publicProfile(userId), isNew: isNew });
+      return;
+    }
     getOrCreateDailyQuests(userId);
     trackActive(userId);
     savePlayers();
     socket.data.userId = userId;
-    if (cb) cb({ profile: publicProfile(userId), isNew, season: getActiveSeasonal(), tournament: getTournamentForClient() });
+    if (cb) cb({ profile: publicProfile(userId), isNew: isNew, season: getActiveSeasonal() });
   });
 
   socket.on('setName', async ({ userId, name }, cb) => {
@@ -1439,7 +2144,87 @@ io.on('connection', (socket) => {
       if (cb) cb({ error: 'server_error' });
     }
   });
+  // ---- MIGRATION ----
+  socket.on('generateMigrationCode', async ({ userId }, cb) => {
+    try {
+      await playersReady;
+      if (!userId) { if (cb) cb({ error: 'no_user' }); return; }
+      const p = players[userId];
+      if (!p) { if (cb) cb({ error: 'no_profile' }); return; }
+      const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const key = 'bbd:migrate:' + code;
+      await redis.set(key, JSON.stringify({ userId, createdAt: Date.now() }), { ex: 900 });
+      if (cb) cb({ code });
+    } catch (err) {
+      console.error('generateMigrationCode error:', err);
+      if (cb) cb({ error: 'server_error' });
+    }
+  });
 
+  socket.on('applyMigrationCode', async ({ newUserId, code }, cb) => {
+    try {
+      await playersReady;
+      if (!newUserId || !code) { if (cb) cb({ error: 'bad_input' }); return; }
+      code = String(code).toUpperCase().trim();
+      const key = 'bbd:migrate:' + code;
+      const raw = await redis.get(key);
+      if (!raw) { if (cb) cb({ error: 'invalid_code' }); return; }
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const oldUserId = data.userId;
+      if (!oldUserId || oldUserId === newUserId) { if (cb) cb({ error: 'same_user' }); return; }
+      const oldP = players[oldUserId];
+      if (!oldP) { if (cb) cb({ error: 'old_not_found' }); return; }
+
+      const newP = ensureProfile(newUserId);
+
+      newP.rating = oldP.rating || 0;
+      newP.bestScore = oldP.bestScore || 0;
+      newP.coins = oldP.coins || 0;
+      newP.skins = (oldP.skins || []).slice();
+      newP.activeSkin = oldP.activeSkin || 'classic';
+      newP.achievements = (oldP.achievements || []).slice();
+      newP.titles = (oldP.titles || []).slice();
+      newP.activeTitle = oldP.activeTitle || 'rookie';
+      newP.backgrounds = (oldP.backgrounds || []).slice();
+      newP.activeBackground = oldP.activeBackground || 'default';
+      newP.avatars = (oldP.avatars || []).slice();
+      newP.activeAvatar = typeof oldP.activeAvatar === 'number' ? oldP.activeAvatar : 0;
+      newP.emojiSets = (oldP.emojiSets || ['classic']).slice();
+      newP.activeEmojiSet = oldP.activeEmojiSet || 'classic';
+      newP.stats = Object.assign({}, oldP.stats || {});
+      newP.duelWins = oldP.duelWins || 0;
+      newP.duelLosses = oldP.duelLosses || 0;
+      newP.soloGames = oldP.soloGames || 0;
+      newP.puzzleBest = oldP.puzzleBest || 0;
+      newP.puzzleLastDate = oldP.puzzleLastDate || null;
+      newP.tournamentWins = (oldP.tournamentWins || []).slice();
+      newP.referralCount = oldP.referralCount || 0;
+      newP.coinsSpent = oldP.coinsSpent || 0;
+      newP.emoteCount = oldP.emoteCount || 0;
+      newP.referredBy = oldP.referredBy || null;
+      newP.referralRewarded = oldP.referralRewarded || false;
+
+      // Друзья — переносим и обновляем связи
+      newP.friends = (oldP.friends || []).slice();
+      newP.friendRequests = (oldP.friendRequests || []).slice();
+      for (const fid of newP.friends) {
+        const f = players[fid];
+        if (f && Array.isArray(f.friends)) {
+          f.friends = f.friends.filter(function(id) { return id !== oldUserId; });
+          if (f.friends.indexOf(newUserId) === -1) f.friends.push(newUserId);
+        }
+      }
+
+      newP.updatedAt = Date.now();
+      await redis.del(key);
+      savePlayers();
+      console.log('Migration OK: ' + oldUserId + ' -> ' + newUserId);
+      if (cb) cb({ ok: true, profile: publicProfile(newUserId) });
+    } catch (err) {
+      console.error('applyMigrationCode error:', err);
+      if (cb) cb({ error: 'server_error' });
+    }
+  });
   socket.on('getAchievements', async ({ userId }, cb) => {
     await playersReady;
     const p = players[userId];
@@ -1956,5 +2741,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Block Blast Duel v9 on http://localhost:' + PORT));
+const PORT = 12324;
+const HOST = '0.0.0.0';
+server.listen(PORT, HOST, () => {
+  console.log('Block Blast Duel v9 on http://' + HOST + ':' + PORT);
+});
