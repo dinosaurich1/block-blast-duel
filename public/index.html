@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="/icon.svg">
   <title>Block Blast Duel</title>
   <script src="https://telegram.org/js/telegram-web-app.js" type="22826a0a07d1da3bbf4784ed-text/javascript"></script>
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" type="294c0c3208ab8ec726d153b4-text/javascript"></script>
   <style>
     * {
       margin: 0;
@@ -2405,6 +2406,7 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
         <button class="soundToggle off" id="musicToggle">🎵 Музыка</button>
         <button class="soundToggle" id="langToggle">🇬🇧 EN</button>
         <button class="soundToggle" id="linkTgBtn" style="display:none;">✈️ Link</button>
+        <button class="soundToggle" id="linkVkBtn" style="display:none;">🅥 Войти VK</button>
         </div>
       </div>
     </div>
@@ -3599,6 +3601,8 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   };
 
   const state = {
+    inVk: false,
+    inTg: false,
     socket: null, userId: '', profile: null, nameManuallySet: false,
     mode: 'menu', board: [], pieces: [null, null, null],
     sequence: [], seqIndex: 0,
@@ -3607,6 +3611,7 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     cellSize: 0, boardX: 0, boardY: 0, boardPixelSize: 0,
     combo: 0, flashCells: [], screenShake: 0,
     totalLinesCleared: 0,
+    reSyncing: false,
     activeSkin: 'classic',
     pendingRoomCode: null, pendingRoomHandled: false
         ,
@@ -3635,6 +3640,50 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     const skin = SKINS[state.activeSkin] || SKINS.classic;
     skin.render(ctx, x, y, size, color, scale || 1, flash || 0);
   }
+    function tryInitVkBridge(callback) {
+    if (!window.vkBridge || !window.vkBridge.send) {
+      callback(null);
+      return;
+    }
+    let done = false;
+    const timeout = setTimeout(function() {
+      if (done) return;
+      done = true;
+      console.log('VK Bridge timeout — not in VK');
+      callback(null);
+    }, 1500);
+
+    try {
+      window.vkBridge.send('VKWebAppInit', {})
+        .then(function() {
+          return window.vkBridge.send('VKWebAppGetUserInfo', {});
+        })
+        .then(function(user) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          if (user && user.id) {
+            console.log('VK user id:', user.id);
+            callback(String(user.id));
+          } else {
+            callback(null);
+          }
+        })
+        .catch(function(err) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          console.log('VK Bridge error:', err);
+          callback(null);
+        });
+    } catch (e) {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      console.log('VK Bridge exception:', e);
+      callback(null);
+    }
+  }
   function getTelegramId() {
     try {
       const tg = window.Telegram && window.Telegram.WebApp;
@@ -3644,8 +3693,20 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     } catch (e) {}
     return null;
   }
-  function getUserId() {
+    function getUserId() {
+    // 1. VK (если уже сохранён vk_XXX)
     let id = localStorage.getItem('bbd_userid');
+    if (id && id.indexOf('vk_') === 0) return id;
+
+    // 2. Telegram
+    const tgId = getTelegramId();
+    if (tgId) {
+      const tgUid = 'tg_' + tgId;
+      try { localStorage.setItem('bbd_userid', tgUid); } catch (e) {}
+      return tgUid;
+    }
+
+    // 3. Браузер
     if (!id) {
       id = 'u_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-5);
       localStorage.setItem('bbd_userid', id);
@@ -3667,17 +3728,66 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     } catch (e) {}
   }
   function getRank(r) { let x = RANKS[0]; for (const k of RANKS) { if (r >= k.min) x = k; else break; } return x; }
-  function getNextRank(r) { for (const k of RANKS) { if (r < k.min) return k; } return null; }
-   function updateTgLinkBtn() {
+    function getNextRank(r) {
+    for (const k of RANKS) {
+      if (r < k.min) return k;
+    }
+    return null;
+  }
+  function updateTgLinkBtn() {
     const btn = $('linkTgBtn');
     if (!btn) return;
-    const inTg = !!getTelegramId();
-    const hasTg = !!(state.profile && state.profile.tgId);
-    if (inTg || hasTg) {
+    // В VK — прячем
+    if (state.inVk) {
       btn.style.display = 'none';
-    } else {
-      btn.style.display = '';
+      return;
     }
+    // В Telegram — показываем «Принять код»
+    if (state.inTg) {
+      btn.style.display = '';
+      btn.textContent = '✈️ Принять код';
+      return;
+    }
+    // В браузере и уже привязан — скрываем
+    if (state.profile && state.profile.tgId) {
+      btn.style.display = 'none';
+      return;
+    }
+    // В браузере и не привязан — «Связать TG»
+    btn.style.display = '';
+    btn.textContent = '✈️ Связать TG';
+  }
+    function updateVkLinkBtn() {
+    const btn = $('linkVkBtn');
+    if (!btn) return;
+    // В VK — прячем (там автовход)
+    if (state.inVk) {
+      btn.style.display = 'none';
+      return;
+    }
+    // В Telegram — тоже прячем
+    if (state.inTg) {
+      btn.style.display = 'none';
+      return;
+    }
+    // В обычном браузере — показываем
+    btn.style.display = '';
+    btn.textContent = '🅥 Войти VK';
+  }
+    function startVkAuth() {
+    if (state.inVk) {
+      showToast('Вы уже в VK');
+      return;
+    }
+    // Открываем игру в VK Mini App
+    const appUrl = 'https://vk.com/app54778822';
+    window.open(appUrl, '_blank');
+    showOverlay(
+      '🅥 ОТКРЫВАЕМ VK',
+      'Открыли игру во ВКонтакте.<br><br>Там ты автоматически залогинен под своим VK ID.<br>Твой прогресс сохранится отдельно от браузера.',
+      [{ text: 'Ок', action: hideOverlay }],
+      false
+    );
   }
   function renderMenuRank() {
     if (!state.profile) {
@@ -4553,12 +4663,66 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       }
     });
   }
-    function startLinkTelegram() {
-    if (getTelegramId()) { showToast('Уже привязано'); return; }
-    if (state.profile && state.profile.tgId) { showToast('Уже привязано'); return; }
-    if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
+    function reSyncProfile() {
+    if (!state.socket || !state.socket.connected) return;
+    if (state.reSyncing) return;
+    state.reSyncing = true;
 
-    showOverlay('✈️ ПРИВЯЗКА TELEGRAM', 'Готовим код...', null, true);
+    const meta = loadLocalMeta();
+    state.socket.emit('syncProfile', {
+      userId: state.userId,
+      name: state.nameManuallySet ? getUserName() : '',
+      localRating: meta.rating || 0,
+      localBest: meta.bestScore || 0,
+      tgId: null
+    }, function(res) {
+      state.reSyncing = false;
+      if (!res || !res.profile) return;
+      if (!res.switchToId || res.switchToId === state.userId) return;
+
+      // Переключаемся на другой аккаунт
+      state.userId = res.switchToId;
+      try { localStorage.setItem('bbd_userid', res.switchToId); } catch (e) {}
+      state.profile = res.profile;
+      state.activeSkin = res.profile.activeSkin || 'classic';
+      saveLocalMeta();
+      renderMenuRank();
+      updateScoreUI();
+      renderMenuAvatarAndTitle();
+      applyBackground();
+      applyMenuTheme();
+      updateQuestsBadge();
+      updateTgLinkBtn();
+      Audio.win();
+
+      setTimeout(function() {
+        showOverlay(
+          '✈️ АККАУНТ СИНХРОНИЗИРОВАН',
+          'Твой браузерный аккаунт связан с Telegram.<br>Прогресс подтянут:<br><br>Монет: <b>' + (res.profile.coins || 0) + '</b><br>Рейтинг: <b>' + (res.profile.rating || 0) + '</b><br>Рекорд: <b>' + (res.profile.bestScore || 0) + '</b>',
+          [{ text: 'Играть', action: hideOverlay }],
+          false
+        );
+      }, 300);
+    });
+  }
+  function startLinkTelegram() {
+    // В Telegram — всегда показываем ввод кода
+    if (getTelegramId()) {
+      showLinkInputOverlay();
+      return;
+    }
+    // В браузере — если уже привязан, скрываем
+    if (state.profile && state.profile.tgId) {
+      showToast('Уже привязано');
+      return;
+    }
+    // В браузере — генерируем код
+    generateLinkCode();
+  }
+
+  function generateLinkCode() {
+    if (!state.socket || !state.socket.connected) { showToast('Нет связи'); return; }
+    showOverlay('✈️ СВЯЗАТЬ С TELEGRAM', 'Готовим код...', null, true);
     state.socket.emit('generateLinkCode', { userId: state.userId }, function(res) {
       $('spinner').style.display = 'none';
       if (!res || !res.code) {
@@ -4568,31 +4732,51 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
         return;
       }
       const code = res.code;
+      const botLink = 'https://t.me/block_blast_duel_bot/app';
       const custom = ''
         + '<div style="text-align:center;padding:8px 0;">'
-        + '<div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;">Код привязки</div>'
+        + '<div style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;">Код связки</div>'
         + '<div style="font-family:monospace;font-size:42px;font-weight:900;letter-spacing:10px;color:#229ED9;margin:12px 0;text-shadow:0 0 24px rgba(34,158,217,0.7);">' + code + '</div>'
         + '<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:16px;">Действует 15 минут</div>'
         + '<div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;text-align:left;padding:12px;background:rgba(34,158,217,0.08);border-radius:12px;border:1px solid rgba(34,158,217,0.3);">'
         + '<b>Что делать:</b><br>'
-        + '1. Скопируй код<br>'
-        + '2. Открой бота в Telegram<br>'
-        + '3. Код применится автоматически<br>'
-        + '<b style="color:#ffd93b;">+50 монет</b> за привязку'
+        + '1. Нажми <b>Скопировать код</b><br>'
+        + '2. Открой игру в Telegram-боте<br>'
+        + '3. В меню нажми <b>✈️ Принять код</b><br>'
+        + '4. Вставь код и нажми <b>Применить</b><br>'
+        + '<b style="color:#ffd93b;">+50 монет</b> за первую связку'
         + '</div>'
         + '</div>';
-      showOverlay('✈️ ПРИВЯЗКА', '', [
+      showOverlay('✈️ СВЯЗАТЬ', '', [
         { text: '📋 Скопировать код', action: function() {
           copyText(code).then(function() { showToast('Код скопирован'); });
         }},
         { text: 'Открыть Telegram', action: function() {
-          window.open('https://t.me/block_blast_duel_bot/app?startapp=LINK_' + code, '_blank');
+          window.open(botLink, '_blank');
         }},
         { text: 'Закрыть', action: hideOverlay, secondary: true }
       ], false, '', custom);
     });
   }
 
+  function showLinkInputOverlay() {
+    const custom = ''
+      + '<div style="padding:8px 0;">'
+      + '<div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:14px;text-align:left;">'
+      + 'Открой игру в обычном браузере, нажми <b>✈️ Связать TG</b>, получи код и введи его здесь.'
+      + '</div>'
+      + '<input id="linkCodeInput" type="text" maxlength="8" placeholder="ABC123" autocomplete="off" autocorrect="off" spellcheck="false" style="width:100%;padding:16px;border-radius:12px;border:2px solid rgba(34,158,217,0.5);background:rgba(255,255,255,0.06);color:#fff;font-size:24px;text-align:center;font-family:monospace;letter-spacing:8px;text-transform:uppercase;outline:none;box-sizing:border-box;">'
+      + '</div>';
+    showOverlay('✈️ ПРИНЯТЬ КОД', '', [
+      { text: 'Применить', action: function() {
+        const val = ($('linkCodeInput') && $('linkCodeInput').value || '').trim().toUpperCase();
+        if (val.length < 4) { showToast('Введи код'); return; }
+        applyPendingLink(val);
+      }},
+      { text: 'Отмена', action: hideOverlay, secondary: true }
+    ], false, '', custom);
+    setTimeout(function() { try { $('linkCodeInput').focus(); } catch(e){} }, 200);
+  }
   function applyPendingLink(code) {
     if (!code) return;
     const tgId = getTelegramId();
@@ -4602,17 +4786,31 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     showOverlay('✈️ ПРИВЯЗКА', 'Применяем код ' + code + '...', null, true);
     state.socket.emit('applyLinkCode', { currentUserId: state.userId, tgId: tgId, code: code }, function(res) {
       if (res && res.ok && res.profile) {
-        if (res.switchToId && res.switchToId !== state.userId) {
-          state.userId = res.switchToId;
-          try { localStorage.setItem('bbd_userid', res.switchToId); } catch (e) {}
-        }
+          let didSwitch = false;
+          let switchReason = res.reason || '';
+          if (res.switchToId && res.switchToId !== state.userId) {
+            state.userId = res.switchToId;
+            try { localStorage.setItem('bbd_userid', res.switchToId); } catch (e) {}
+            didSwitch = true;
+          }
         state.profile = res.profile;
         state.activeSkin = res.profile.activeSkin || 'classic';
         saveLocalMeta(); renderMenuRank(); updateScoreUI();
         applyBackground(); applyMenuTheme();
         Audio.win();
-        const bonusText = res.bonusGiven ? '<br><b style="color:#ffd93b;">+50 монет за привязку!</b>' : '';
-        showOverlay('✅ ПРИВЯЗАНО', 'Аккаунт связан с Telegram!' + bonusText, [
+        let title, text;
+        if (res.merged) {
+          title = '🔗 АККАУНТЫ ОБЪЕДИНЕНЫ';
+          text = 'Прогресс с этого браузера слит с Telegram-аккаунтом.<br>'
+               + 'Монет: <b>' + res.profile.coins + '</b><br>'
+               + 'Рейтинг: <b>' + res.profile.rating + '</b><br>'
+               + 'Рекорд: <b>' + res.profile.bestScore + '</b>';
+        } else {
+          title = '✅ ПРИВЯЗАНО';
+          text = 'Аккаунт связан с Telegram!'
+               + (res.bonusGiven ? '<br><b style="color:#ffd93b;">+50 монет за привязку!</b>' : '');
+        }
+        showOverlay(title, text, [
           { text: 'Играть', action: hideOverlay }
         ], false);
         updateTgLinkBtn();
@@ -4852,6 +5050,20 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     showGame();
     initSocket();
     state.mode = 'duel';
+              if (didSwitch) {
+            Audio.win();
+            const msg = switchReason === 'linked'
+              ? 'Твой браузерный аккаунт связан с Telegram. Прогресс подтянут.'
+              : 'Найден аккаунт, привязанный к твоему Telegram. Загружаем его.';
+            setTimeout(function() {
+              showOverlay(
+                '✈️ АККАУНТ СИНХРОНИЗИРОВАН',
+                msg + '<br><br>Монет: <b>' + (res.profile.coins || 0) + '</b><br>Рейтинг: <b>' + (res.profile.rating || 0) + '</b><br>Рекорд: <b>' + (res.profile.bestScore || 0) + '</b>',
+                [{ text: 'Играть', action: hideOverlay }],
+                false
+              );
+            }, 500);
+          }
     if (!state.nameManuallySet) setTimeout(function() { if (!state.nameManuallySet && state.mode === 'duel') openNameInput(); }, 600);
     const doCreate = function() {
       state.socket.emit('createRoom', { userId: state.userId }, function(res) {
@@ -5139,18 +5351,24 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       const nameToSend = state.nameManuallySet ? getUserName() : '';
       const refForSync = state.refParam || null;
       const tgId = getTelegramId();
+      const vkId = state.inVk && state.userId.indexOf('vk_') === 0
+        ? state.userId.substring(3)
+        : null;
       state.socket.emit('syncProfile', {
         userId: state.userId, name: nameToSend,
         localRating: meta.rating || 0, localBest: meta.bestScore || 0,
         ref: refForSync,
-        tgId: tgId
+        tgId: tgId,
+        vkId: vkId
       }, function(res) {
-        if (res && res.profile) {
-          // Если сервер попросил переключиться на другой ID — делаем это
-          if (res.switchToId && res.switchToId !== state.userId) {
-            state.userId = res.switchToId;
-            try { localStorage.setItem('bbd_userid', res.switchToId); } catch (e) {}
-          }
+  if (res && res.profile) {
+    let didSwitch = false;
+    let switchReason = res.reason || '';
+    if (res.switchToId && res.switchToId !== state.userId) {
+      state.userId = res.switchToId;
+      try { localStorage.setItem('bbd_userid', res.switchToId); } catch (e) {}
+      didSwitch = true;
+    }
           const profileNameIsAuto = res.profile.name && res.profile.name.startsWith('Игрок-');
           if (state.nameManuallySet && getUserName()) res.profile.name = getUserName();
           state.profile = res.profile;
@@ -5160,6 +5378,17 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
           applyMenuTheme();
           needsRedraw = true;
           updateQuestsBadge();
+                    if (didSwitch) {
+            Audio.win();
+            setTimeout(function() {
+              showOverlay(
+                '✈️ АККАУНТ СИНХРОНИЗИРОВАН',
+                'Твой Telegram привязан к аккаунту.<br>Загружены:<br>Монет: <b>' + (res.profile.coins || 0) + '</b><br>Рейтинг: <b>' + (res.profile.rating || 0) + '</b><br>Рекорд: <b>' + (res.profile.bestScore || 0) + '</b>',
+                [{ text: 'Играть', action: hideOverlay }],
+                false
+              );
+            }, 500);
+          }
             if (!state.nameManuallySet && (profileNameIsAuto || !res.profile.name)) {
             setTimeout(openNameInput, 400);
           } else {
@@ -5853,6 +6082,13 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
         startLinkTelegram();
       });
     }
+        const linkVkBtn = $('linkVkBtn');
+    if (linkVkBtn) {
+      linkVkBtn.addEventListener('click', function() {
+        Audio.click();
+        startVkAuth();
+      });
+    }
         $('langToggle').addEventListener('click', function() {
       Audio.click();
       setLang(currentLang === 'ru' ? 'en' : 'ru');
@@ -5894,7 +6130,12 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       }
       showMenu();
     });
-
+       document.addEventListener('visibilitychange', function() {
+      if (document.hidden) return;
+      if (!state.socket || !state.socket.connected) return;
+      if (getTelegramId()) return; // мы в Telegram — не пересинхронизируем
+      reSyncProfile();
+    });
     document.querySelectorAll('.pieceSlot').forEach(function(slot) {
       const idx = parseInt(slot.dataset.i, 10);
       slot.addEventListener('pointerdown', function(e) {
@@ -5985,7 +6226,20 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     } catch (e) {}
   }
   function registerServiceWorker() {
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
+    if (!('serviceWorker' in navigator)) return;
+
+    // Если мы внутри iframe (VK, Telegram, Яндекс) — SW не нужен и вреден
+    if (window.self !== window.top) {
+      // Убираем уже зарегистрированный SW
+      try {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        });
+      } catch (e) {}
+      return;
+    }
+
+    navigator.serviceWorker.register('/sw.js').catch(function() {});
   }
     function applyI18n() {
     // Обновляем все элементы с data-i18n
@@ -6047,11 +6301,13 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     detectRoomCode();
     detectReferral();
     detectLinkParam();
-    detectMigrationParam();
+
     state.board = emptyBoard();
     state.userId = getUserId();
+
     const name = getUserName();
     state.nameManuallySet = !!name;
+
     const meta = loadLocalMeta();
     state.profile = {
       name: name || 'Игрок',
@@ -6065,23 +6321,56 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     };
     state.activeSkin = 'classic';
     renderMenuRank();
-    updateTgLinkBtn();
     bindInput();
-    applyI18n();
     resizeBoard();
     renderTray();
     requestAnimationFrame(loop);
     if (!navigator.onLine) $('offlineBadge').classList.add('on');
-    initSocket();
-    applyMenuTheme();
     registerServiceWorker();
-    if (state.pendingRoomCode && state.nameManuallySet) setTimeout(tryJoinPendingRoom, 800);
+
+    // === ОПРЕДЕЛЯЕМ СРЕДУ ===
+    state.inTg = !!getTelegramId();
+
+    // Пробуем VK Bridge (асинхронно, 1.5 сек таймаут)
+    tryInitVkBridge(function(vkId) {
+      if (vkId) {
+        state.inVk = true;
+        const vkUid = 'vk_' + vkId;
+        if (state.userId !== vkUid) {
+          state.userId = vkUid;
+          try { localStorage.setItem('bbd_userid', vkUid); } catch (e) {}
+          // Сброс профиля, так как аккаунт другой
+          state.profile = {
+            name: name || 'Игрок',
+            rating: 0, bestScore: 0,
+            coins: 0, skins: ['classic'], activeSkin: 'classic',
+            achievements: [], titles: ['rookie'], activeTitle: 'rookie',
+            backgrounds: ['default'], activeBackground: 'default',
+            avatars: [0,1], activeAvatar: 0,
+            duelWins: 0, duelLosses: 0, soloGames: 0,
+            seasonal: { skins: [], menuTheme: 'default' }
+          };
+        }
+      }
+
+      // Обновляем UI
+      updateVkLinkBtn();
+      updateTgLinkBtn();
+      applyMenuTheme();
+
+      // Запускаем сокет
+      initSocket();
+
+      if (state.pendingRoomCode && state.nameManuallySet) {
+        setTimeout(tryJoinPendingRoom, 800);
+      }
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
   </script>
-<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="22826a0a07d1da3bbf4784ed-|49" defer></script><script type="5c0ece16ea0d4c7625c45e8e-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd0588ddeefa24',t:'MTc4OTY5OTYwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5c0ece16ea0d4c7625c45e8e-|49" defer></script><script type="9e502843f158001249840c0b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd118fc8603637',t:'MTc4OTcwMDA5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="9e502843f158001249840c0b-|49" defer></script><script type="6991f0d37910f5c947190816-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd167c1f23a0af',t:'MTc4OTcwMDI5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="6991f0d37910f5c947190816-|49" defer></script><script type="dd1175eeacc4a165ce249cbf-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd949f1953dc48',t:'MTc4OTcwNTQ2MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="dd1175eeacc4a165ce249cbf-|49" defer></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce023d7f30dbd7',t:'MTc4OTcwOTk1MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="22826a0a07d1da3bbf4784ed-|49" defer></script><script type="5c0ece16ea0d4c7625c45e8e-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd0588ddeefa24',t:'MTc4OTY5OTYwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5c0ece16ea0d4c7625c45e8e-|49" defer></script><script type="9e502843f158001249840c0b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd118fc8603637',t:'MTc4OTcwMDA5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="9e502843f158001249840c0b-|49" defer></script><script type="6991f0d37910f5c947190816-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd167c1f23a0af',t:'MTc4OTcwMDI5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="6991f0d37910f5c947190816-|49" defer></script><script type="dd1175eeacc4a165ce249cbf-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd949f1953dc48',t:'MTc4OTcwNTQ2MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="dd1175eeacc4a165ce249cbf-|49" defer></script><script type="1d0e7a954c25d08379bf564f-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce023d7f30dbd7',t:'MTc4OTcwOTk1MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="1d0e7a954c25d08379bf564f-|49" defer></script><script type="317066498d4375bdfecf4254-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce114d68637c0a',t:'MTc4OTcxMDU2OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="317066498d4375bdfecf4254-|49" defer></script><script type="5178881157b6f812b7c0208a-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce30c67e16dbc9',t:'MTc4OTcxMTg1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5178881157b6f812b7c0208a-|49" defer></script><script type="b15f46e2dcf2f603108b2ed8-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce49ef2da0243e',t:'MTc4OTcxMjg4OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="b15f46e2dcf2f603108b2ed8-|49" defer></script><script type="53ab1bec323a5d60a71d5838-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce953f6a89dc85',t:'MTc4OTcxNTk3Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="53ab1bec323a5d60a71d5838-|49" defer></script><script type="88a99d9212a4ff8941db8bb0-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cea812acecf65d',t:'MTc4OTcxNjc0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="88a99d9212a4ff8941db8bb0-|49" defer></script><script type="7eae7fdcde61acd02d7e5114-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cefe440c8e1e6a',t:'MTc4OTcyMDI3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="7eae7fdcde61acd02d7e5114-|49" defer></script><script type="125ab07b80883a93e73c755a-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cf03edcb669729',t:'MTc4OTcyMDUwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="125ab07b80883a93e73c755a-|49" defer></script><script type="bc86b965b1cb51a03c5a3824-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cf0f11bca14d76',t:'MTc4OTcyMDk2Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="bc86b965b1cb51a03c5a3824-|49" defer></script><script type="294c0c3208ab8ec726d153b4-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d28057bfb39150',t:'MTc4OTc1NzA1OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="294c0c3208ab8ec726d153b4-|49" defer></script><script type="b239ea7368c35316dffdac6b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d297aac9285d70',t:'MTc4OTc1ODAxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="b239ea7368c35316dffdac6b-|49" defer></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d2b8ede961c614',t:'MTc4OTc1OTM3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 
 </html>
