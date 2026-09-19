@@ -2357,13 +2357,120 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     font-size: 12px;
     color: rgba(255,255,255,0.6);
     }
+  #onboarding {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%, #2a1055, #050010 70%);
+  z-index: 500;
+  padding: 30px 20px;
+  gap: 24px;
+  text-align: center;
+}
+#onboarding.hidden { display: none; }
+.onbSlide {
+  display: none;
+  flex-direction: column; align-items: center;
+  gap: 16px;
+  animation: onbIn 0.4s ease;
+}
+.onbSlide.active { display: flex; }
+@keyframes onbIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+.onbIcon { font-size: 90px; }
+.onbTitle {
+  font-size: 26px; font-weight: 900;
+  background: linear-gradient(135deg, #ff6b81, #a55eea, #1e90ff);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.onbText {
+  font-size: 15px; color: rgba(255,255,255,0.75);
+  max-width: 320px; line-height: 1.5;
+}
+.onbDots {
+  display: flex; gap: 8px;
+}
+.onbDot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: all 0.3s;
+}
+.onbDot.active {
+  background: #a55eea; width: 24px; border-radius: 4px;
+}
+.onbBtns {
+  display: flex; gap: 10px;
+  margin-top: 10px;
+}
+  /* СВЕТЛАЯ ТЕМА */
+body.light-theme {
+  background: #f0f0ff;
+  color: #1a1a3a;
+}
+body.light-theme::before {
+  background: linear-gradient(135deg, #dde0ff 0%, #f0f0ff 50%, #e0e5ff 100%);
+}
+body.light-theme .menuBtn,
+body.light-theme .pill,
+body.light-theme #rankBox {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.12);
+  color: #1a1a3a;
+}
+body.light-theme .menuBtn .text small { color: rgba(0,0,0,0.5); }
+body.light-theme #overlay {
+  background: rgba(240,240,255,0.95);
+  color: #1a1a3a;
+}
+body.light-theme #overlayText { color: rgba(0,0,0,0.7); }
+body.light-theme #overlayText b { color: #d4a017; }
+body.light-theme .shopCard {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.1);
+}
+body.light-theme .shopCard .skinDesc { color: rgba(0,0,0,0.5); }
+body.light-theme .lbWrap, body.light-theme #lbWrap {
+  background: rgba(0,0,0,0.03);
+}
+body.light-theme .lbRow.me {
+  background: rgba(30,144,255,0.1);
+}
   </style>
 </head>
 
 <body>
   <div id="bgParticles"></div>
   <div class="menu-snow" id="menuSnow"></div>
-
+  <div id="onboarding" class="hidden">
+  <div class="onbSlide" data-slide="0">
+    <div class="onbIcon">🎮</div>
+    <div class="onbTitle">BLOCK BLAST DUEL</div>
+    <div class="onbText">Головоломка с блоками на двоих. Онлайн-дуэли, рейтинг, турниры.</div>
+  </div>
+  <div class="onbSlide" data-slide="1">
+    <div class="onbIcon">⚔️</div>
+    <div class="onbTitle">Сражайся с друзьями</div>
+    <div class="onbText">Оба получают одинаковые фигуры. Кто первый не сможет поставить — проиграл. Играй со случайными соперниками или приглашай друзей!</div>
+  </div>
+  <div class="onbSlide" data-slide="2">
+    <div class="onbIcon">🏆</div>
+    <div class="onbTitle">Качай рейтинг</div>
+    <div class="onbText">Зарабатывай монеты, открывай скины, участвуй в турнирах. Путь от Новичка до Грандмастера!</div>
+  </div>
+  <div class="onbDots">
+    <span class="onbDot active"></span>
+    <span class="onbDot"></span>
+    <span class="onbDot"></span>
+  </div>
+  <div class="onbBtns">
+    <button class="btn secondary" id="onbSkip">Пропустить</button>
+    <button class="btn" id="onbNext">Далее</button>
+  </div>
+</div>
   <div id="menu">
     <div class="menuTitle">BLOCK BLAST<br>DUEL</div>
     <div class="menuSub">v7 · 2025</div>
@@ -2387,7 +2494,11 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     <span class="text">Магазин<small>Скины, фоны, аватарки</small></span>
     <span class="badge" id="coinsBadge">🪙 0</span>
   </button>
-
+    <div style="display:flex;gap:10px;margin-top:6px;font-size:11px;">
+  <a href="/privacy.html" target="_blank" style="color:rgba(255,255,255,0.5);text-decoration:none;">Политика конфиденциальности</a>
+  <span style="color:rgba(255,255,255,0.3);">·</span>
+  <a href="/terms.html" target="_blank" style="color:rgba(255,255,255,0.5);text-decoration:none;">Оферта</a>
+</div>
     <div id="rankBox">
       <span class="avatarCircle" id="myAvatar">😀</span>
       <div id="rankInfo">
@@ -4495,19 +4606,14 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       +='<div style="font-size:11px;color:rgba(255,255,255,0.4);">&#128274;</div>' ; } html +='</div>' ; } }
     html += '</div>';
   
-    const isTgApp = !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user);
-    const migrateLabel = isTgApp ? '📥 Принять перенос' : '📱 Перенести в Telegram';
     showOverlay('🎨 ' + t('shopTitle'), '', [
-      { text: migrateLabel, action: function() {
-        startMigrationFlow();
-      }},
       { text: '📺 ' + t('adSkinBtn'), action: function() {
-  showFakeAd(15, t('adFreeSkin'), function() {
-  showToast(t('toastAdReward'));
-  }, function() {});
-  }},
-  { text: t('btnClose'), action: hideOverlay, secondary: true }
-  ], false, '', html);
+        showFakeAd(15, t('adFreeSkin'), function() {
+          showToast(t('toastAdReward'));
+        }, function() {});
+      }},
+      { text: t('btnClose'), action: hideOverlay, secondary: true }
+    ], false, '', html);
   
   setTimeout(function() {
   document.querySelectorAll('.shopTab').forEach(function(tb) {
@@ -6297,6 +6403,165 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
       state.pendingMigrationCode = code;
     } catch (e) {}
   }
+    let onbSlideIndex = 0;
+  const onbTotalSlides = 3;
+
+  function showOnboarding() {
+    const el = $('onboarding');
+    if (!el) return;
+    el.classList.remove('hidden');
+    onbSlideIndex = 0;
+    updateOnbSlides();
+  }
+
+  function updateOnbSlides() {
+    document.querySelectorAll('.onbSlide').forEach(function(s, i) {
+      s.classList.toggle('active', i === onbSlideIndex);
+    });
+    document.querySelectorAll('.onbDot').forEach(function(d, i) {
+      d.classList.toggle('active', i === onbSlideIndex);
+    });
+    $('onbNext').textContent = onbSlideIndex === onbTotalSlides - 1 ? 'Играть!' : 'Далее';
+  }
+
+  function closeOnboarding() {
+    $('onboarding').classList.add('hidden');
+    try { localStorage.setItem('bbd_onboarded', '1'); } catch (e) {}
+  }
+
+  function initOnboarding() {
+    $('onbNext').addEventListener('click', function() {
+      Audio.click();
+      if (onbSlideIndex >= onbTotalSlides - 1) {
+        closeOnboarding();
+      } else {
+        onbSlideIndex++;
+        updateOnbSlides();
+      }
+    });
+    $('onbSkip').addEventListener('click', function() {
+      Audio.click();
+      closeOnboarding();
+    });
+    // Свайп
+    const el = $('onboarding');
+    let startX = 0;
+    el.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', function(e) {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) < 60) return;
+      if (dx < 0 && onbSlideIndex < onbTotalSlides - 1) { onbSlideIndex++; updateOnbSlides(); }
+      if (dx > 0 && onbSlideIndex > 0) { onbSlideIndex--; updateOnbSlides(); }
+    });
+  }
+    function detectTheme() {
+    // VK Bridge передаёт тему
+    if (window.vkBridge && window.vkBridge.send) {
+      try {
+        window.vkBridge.send('VKWebAppUpdateConfig', {})
+          .then(function(cfg) {
+            if (cfg && cfg.appearance) applyTheme(cfg.appearance);
+          })
+          .catch(function() {});
+      } catch (e) {}
+    }
+    // Telegram
+    try {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && tg.colorScheme) applyTheme(tg.colorScheme);
+    } catch (e) {}
+    // Системная
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      applyTheme('light');
+    }
+  }
+
+  function applyTheme(theme) {
+    document.body.classList.toggle('light-theme', theme === 'light');
+  }
+    function addShareButton() {
+    const rankBox = $('rankBox');
+    if (!rankBox) return;
+    const btn = document.createElement('button');
+    btn.id = 'shareBtn';
+    btn.style.cssText = 'margin-top:8px;padding:8px 14px;border-radius:10px;border:1px solid rgba(34,158,217,0.4);background:rgba(34,158,217,0.15);color:#229ED9;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;width:100%;';
+    btn.textContent = '🔗 Поделиться с друзьями';
+    btn.onclick = function() {
+      Audio.click();
+      shareGame();
+    };
+    rankBox.appendChild(btn);
+  }
+
+  function shareGame() {
+    const link = 'https://vk.com/app54778822';
+    const text = 'Играю в Block Blast Duel! Сыграем дуэль? 🎮';
+    if (window.vkBridge && window.vkBridge.send) {
+      try {
+        window.vkBridge.send('VKWebAppShare', { link: link })
+          .catch(function() { fallbackShare(link, text); });
+        return;
+      } catch (e) {}
+    }
+    fallbackShare(link, text);
+  }
+
+  function fallbackShare(link, text) {
+    if (navigator.share) {
+      navigator.share({ title: 'Block Blast Duel', text: text, url: link }).catch(function() {});
+    } else {
+      copyText(link + '\n' + text).then(function() { showToast('Ссылка скопирована'); });
+    }
+  }
+    function initPullToRefresh() {
+    let startY = 0;
+    let pulling = false;
+    const threshold = 80;
+    const menu = $('menu');
+    if (!menu) return;
+
+    menu.addEventListener('touchstart', function(e) {
+      if (menu.scrollTop === 0) startY = e.touches[0].clientY;
+      else startY = -1;
+    }, { passive: true });
+
+    menu.addEventListener('touchmove', function(e) {
+      if (startY < 0) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > threshold && !pulling) {
+        pulling = true;
+        refreshProfile();
+        setTimeout(function() { pulling = false; }, 1500);
+      }
+    }, { passive: true });
+  }
+
+  function refreshProfile() {
+    if (!state.socket || !state.socket.connected) return;
+    showToast('Обновляем...');
+    const meta = loadLocalMeta();
+    state.socket.emit('syncProfile', {
+      userId: state.userId,
+      name: state.nameManuallySet ? getUserName() : '',
+      localRating: meta.rating || 0,
+      localBest: meta.bestScore || 0,
+      tgId: getTelegramId(),
+      vkId: state.inVk && state.userId.indexOf('vk_') === 0 ? state.userId.substring(3) : null
+    }, function(res) {
+      if (res && res.profile) {
+        state.profile = res.profile;
+        state.activeSkin = res.profile.activeSkin || 'classic';
+        saveLocalMeta();
+        renderMenuRank();
+        updateScoreUI();
+        renderMenuAvatarAndTitle();
+        applyBackground();
+        updateTgLinkBtn();
+        updateVkLinkBtn();
+        showToast('Обновлено');
+      }
+    });
+  }
   function boot() {
     detectRoomCode();
     detectReferral();
@@ -6321,6 +6586,14 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
     };
     state.activeSkin = 'classic';
     renderMenuRank();
+        initOnboarding();
+          detectTheme();
+        initPullToRefresh();
+    try {
+      if (!localStorage.getItem('bbd_onboarded')) {
+        showOnboarding();
+      }
+    } catch (e) {}
     bindInput();
     resizeBoard();
     renderTray();
@@ -6360,7 +6633,8 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
 
       // Запускаем сокет
       initSocket();
-
+      // Добавим кнопку "Поделиться" в меню
+      addShareButton();
       if (state.pendingRoomCode && state.nameManuallySet) {
         setTimeout(tryJoinPendingRoom, 800);
       }
@@ -6371,6 +6645,6 @@ animation: srPulse 0.5s ease-in-out infinite, srPulseColor 0.5s ease-in-out infi
   else boot();
 })();
   </script>
-<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="22826a0a07d1da3bbf4784ed-|49" defer></script><script type="5c0ece16ea0d4c7625c45e8e-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd0588ddeefa24',t:'MTc4OTY5OTYwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5c0ece16ea0d4c7625c45e8e-|49" defer></script><script type="9e502843f158001249840c0b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd118fc8603637',t:'MTc4OTcwMDA5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="9e502843f158001249840c0b-|49" defer></script><script type="6991f0d37910f5c947190816-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd167c1f23a0af',t:'MTc4OTcwMDI5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="6991f0d37910f5c947190816-|49" defer></script><script type="dd1175eeacc4a165ce249cbf-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd949f1953dc48',t:'MTc4OTcwNTQ2MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="dd1175eeacc4a165ce249cbf-|49" defer></script><script type="1d0e7a954c25d08379bf564f-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce023d7f30dbd7',t:'MTc4OTcwOTk1MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="1d0e7a954c25d08379bf564f-|49" defer></script><script type="317066498d4375bdfecf4254-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce114d68637c0a',t:'MTc4OTcxMDU2OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="317066498d4375bdfecf4254-|49" defer></script><script type="5178881157b6f812b7c0208a-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce30c67e16dbc9',t:'MTc4OTcxMTg1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5178881157b6f812b7c0208a-|49" defer></script><script type="b15f46e2dcf2f603108b2ed8-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce49ef2da0243e',t:'MTc4OTcxMjg4OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="b15f46e2dcf2f603108b2ed8-|49" defer></script><script type="53ab1bec323a5d60a71d5838-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce953f6a89dc85',t:'MTc4OTcxNTk3Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="53ab1bec323a5d60a71d5838-|49" defer></script><script type="88a99d9212a4ff8941db8bb0-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cea812acecf65d',t:'MTc4OTcxNjc0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="88a99d9212a4ff8941db8bb0-|49" defer></script><script type="7eae7fdcde61acd02d7e5114-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cefe440c8e1e6a',t:'MTc4OTcyMDI3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="7eae7fdcde61acd02d7e5114-|49" defer></script><script type="125ab07b80883a93e73c755a-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cf03edcb669729',t:'MTc4OTcyMDUwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="125ab07b80883a93e73c755a-|49" defer></script><script type="bc86b965b1cb51a03c5a3824-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cf0f11bca14d76',t:'MTc4OTcyMDk2Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="bc86b965b1cb51a03c5a3824-|49" defer></script><script type="294c0c3208ab8ec726d153b4-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d28057bfb39150',t:'MTc4OTc1NzA1OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="294c0c3208ab8ec726d153b4-|49" defer></script><script type="b239ea7368c35316dffdac6b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d297aac9285d70',t:'MTc4OTc1ODAxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="b239ea7368c35316dffdac6b-|49" defer></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d2b8ede961c614',t:'MTc4OTc1OTM3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="22826a0a07d1da3bbf4784ed-|49" defer></script><script type="5c0ece16ea0d4c7625c45e8e-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd0588ddeefa24',t:'MTc4OTY5OTYwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5c0ece16ea0d4c7625c45e8e-|49" defer></script><script type="9e502843f158001249840c0b-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd118fc8603637',t:'MTc4OTcwMDA5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="9e502843f158001249840c0b-|49" defer></script><script type="6991f0d37910f5c947190816-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd167c1f23a0af',t:'MTc4OTcwMDI5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="6991f0d37910f5c947190816-|49" defer></script><script type="dd1175eeacc4a165ce249cbf-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cd949f1953dc48',t:'MTc4OTcwNTQ2MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="dd1175eeacc4a165ce249cbf-|49" defer></script><script type="1d0e7a954c25d08379bf564f-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce023d7f30dbd7',t:'MTc4OTcwOTk1MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="1d0e7a954c25d08379bf564f-|49" defer></script><script type="317066498d4375bdfecf4254-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce114d68637c0a',t:'MTc4OTcxMDU2OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="317066498d4375bdfecf4254-|49" defer></script><script type="5178881157b6f812b7c0208a-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce30c67e16dbc9',t:'MTc4OTcxMTg1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="5178881157b6f812b7c0208a-|49" defer></script><script type="b15f46e2dcf2f603108b2ed8-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce49ef2da0243e',t:'MTc4OTcxMjg4OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="b15f46e2dcf2f603108b2ed8-|49" defer></script><script type="53ab1bec323a5d60a71d5838-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3ce953f6a89dc85',t:'MTc4OTcxNTk3Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="53ab1bec323a5d60a71d5838-|49" defer></script><script type="88a99d9212a4ff8941db8bb0-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cea812acecf65d',t:'MTc4OTcxNjc0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="88a99d9212a4ff8941db8bb0-|49" defer></script><script type="7eae7fdcde61acd02d7e5114-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cefe440c8e1e6a',t:'MTc4OTcyMDI3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="7eae7fdcde61acd02d7e5114-|49" defer></script><script type="125ab07b80883a93e73c755a-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cf03edcb669729',t:'MTc4OTcyMDUwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="125ab07b80883a93e73c755a-|49" defer></script><script type="bc86b965b1cb51a03c5a3824-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3cf0f11bca14d76',t:'MTc4OTcyMDk2Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="bc86b965b1cb51a03c5a3824-|49" defer></script><script type="294c0c3208ab8ec726d153b4-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d28057bfb39150',t:'MTc4OTc1NzA1OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="294c0c3208ab8ec726d153b4-|49" defer></script><script type="f91c7536089a9b2e5e60eb3d-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d297aac9285d70',t:'MTc4OTc1ODAxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="f91c7536089a9b2e5e60eb3d-|49" defer></script><script type="15f5f72d6c2639e1260eab55-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d2d9d43d2ece9d',t:'MTc4OTc2MDcyNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="15f5f72d6c2639e1260eab55-|49" defer></script><script type="22a79019f4c152e4268e0cf3-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d60415dc5665cd',t:'MTc4OTc5MzkxMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="22a79019f4c152e4268e0cf3-|49" defer></script><script type="dadf99d00d337511eb321d6c-text/javascript">(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d60ce9981f18e9',t:'MTc4OTc5NDI3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="dadf99d00d337511eb321d6c-|49" defer></script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3d6162ab88c8dfb',t:'MTc4OTc5NDY1Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 
 </html>
